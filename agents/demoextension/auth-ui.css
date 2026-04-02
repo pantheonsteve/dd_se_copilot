@@ -1,0 +1,440 @@
+/* Auth UI Styles for DemoBuddy Pro */
+
+/* Container */
+.auth-container {
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 400px;
+}
+
+.auth-header {
+  background: linear-gradient(135deg, #632CA6 0%, #8B5CF6 100%);
+  color: white;
+  padding: 16px 20px;
+}
+
+.auth-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.auth-body {
+  padding: 20px;
+}
+
+.auth-footer {
+  padding: 16px 20px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e5e5;
+  text-align: center;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+/* Form styles */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-form label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.auth-form input {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: #8B5CF6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.auth-form input::placeholder {
+  color: #9ca3af;
+}
+
+/* Buttons */
+.auth-submit-btn {
+  background: linear-gradient(135deg, #632CA6 0%, #8B5CF6 100%);
+  color: white;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.auth-submit-btn:hover {
+  opacity: 0.9;
+}
+
+.auth-submit-btn:active {
+  transform: scale(0.98);
+}
+
+.auth-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-link {
+  background: none;
+  border: none;
+  color: #8B5CF6;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.auth-link:hover {
+  color: #632CA6;
+}
+
+.forgot-link {
+  align-self: flex-end;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+/* Divider */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  margin: 20px 0;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e5e5e5;
+}
+
+.auth-divider span {
+  padding: 0 12px;
+}
+
+/* OAuth buttons */
+.auth-oauth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.auth-oauth-btn:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.auth-oauth-btn svg {
+  flex-shrink: 0;
+}
+
+/* Error and success messages */
+.auth-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.auth-success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #16a34a;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.auth-info {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+.auth-hint {
+  color: #9ca3af;
+  font-size: 13px;
+  margin: 8px 0 0 0;
+}
+
+/* Account info */
+.account-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f8f5ff 0%, #f0ebff 100%);
+  border: 1px solid #e9d5ff;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.account-email {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.account-status {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.account-status.pro {
+  background: linear-gradient(135deg, #632CA6 0%, #8B5CF6 100%);
+  color: white;
+  box-shadow: 0 3px 12px rgba(99, 44, 166, 0.35);
+}
+
+.account-status.pro::before {
+  content: '⭐';
+  font-size: 14px;
+}
+
+.account-status.free {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+  box-shadow: none;
+}
+
+/* Sync status */
+.sync-status {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.sync-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #059669;
+  margin-bottom: 6px;
+}
+
+.sync-info .sync-icon {
+  font-size: 16px;
+}
+
+.last-sync {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.track-count {
+  font-size: 13px;
+  font-weight: 500;
+  color: #047857;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+/* Action buttons */
+.auth-action-btn {
+  width: 100%;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 10px;
+  background: linear-gradient(135deg, #632CA6 0%, #8B5CF6 100%);
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px rgba(99, 44, 166, 0.25);
+}
+
+.auth-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 44, 166, 0.35);
+}
+
+.auth-action-btn:active {
+  transform: translateY(0);
+}
+
+.auth-action-btn.secondary {
+  background: white;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.auth-action-btn.secondary:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.auth-action-btn.danger {
+  background: white;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  box-shadow: none;
+}
+
+.auth-action-btn.danger:hover {
+  background: #fef2f2;
+  border-color: #f87171;
+}
+
+/* Sync buttons row */
+.sync-buttons-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.sync-buttons-row .auth-action-btn {
+  flex: 1;
+  margin-bottom: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.sync-buttons-row .sync-push {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+}
+
+.sync-buttons-row .sync-push:hover {
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+}
+
+.sync-buttons-row .sync-pull {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+
+.sync-buttons-row .sync-pull:hover {
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+/* Upgrade prompt */
+.upgrade-prompt {
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  border: 1px solid #e9d5ff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.upgrade-prompt h4 {
+  margin: 0 0 12px 0;
+  color: #632CA6;
+  font-size: 15px;
+}
+
+.pro-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px 0;
+}
+
+.pro-features li {
+  padding: 6px 0;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.pricing {
+  display: flex;
+  gap: 8px;
+}
+
+.upgrade-btn {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.upgrade-btn.monthly {
+  background: white;
+  color: #632CA6;
+  border: 1px solid #632CA6;
+}
+
+.upgrade-btn.monthly:hover {
+  background: #faf5ff;
+}
+
+.upgrade-btn.annual {
+  background: linear-gradient(135deg, #632CA6 0%, #8B5CF6 100%);
+  color: white;
+  border: none;
+  position: relative;
+}
+
+.upgrade-btn.annual:hover {
+  opacity: 0.9;
+}
+
+.save-badge {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.9;
+}

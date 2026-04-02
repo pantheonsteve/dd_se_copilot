@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Datadog Demo Buddy - Datadog Talk Track Manager</title>
+  <link rel="stylesheet" href="options.css">
+  <script src="datadog-rum.js"></script>
+</head>
+<body>
+  <!-- Datadog-branded Header -->
+  <header class="dd-header">
+    <div class="dd-header-content">
+      <div class="dd-logo-section">
+        <img src="icons/datadog_logo.png" alt="Datadog Logo" class="dd-logo">
+        <div class="dd-title-group">
+          <h1>Demo Buddy</h1>
+          <span class="dd-subtitle">Talk Track Manager</span>
+        </div>
+      </div>
+      <div class="dd-header-actions">
+        <button class="save-button" id="saveButton">💾 Save All Changes</button>
+        <div class="status" id="status"></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="main-layout">
+    <!-- Main Content: Talk Tracks -->
+    <main class="main-content">
+      <!-- Control Panel -->
+      <div class="control-panel">
+        <div class="search-section">
+          <input 
+            type="text" 
+            id="searchInput" 
+            class="search-input" 
+            placeholder="🔍 Search tracks by title, URL, content, tags..."
+          />
+        </div>
+
+        <div class="filter-section">
+          <select id="customerFilter" class="customer-filter" title="Filter by customer">
+            <option value="all">All Customers</option>
+            <!-- Customers populated dynamically by JavaScript -->
+          </select>
+
+          <select id="categoryFilter" class="category-filter">
+            <!-- Categories populated dynamically by JavaScript -->
+          </select>
+
+          <select id="tagFilter" class="tag-filter">
+            <option value="all">All Tags</option>
+            <!-- Tags populated dynamically by JavaScript -->
+          </select>
+
+          <button id="expandAll" class="control-btn" title="Expand all tracks">Expand All</button>
+          <button id="collapseAll" class="control-btn" title="Collapse all tracks">Collapse All</button>
+          <button id="importBtn" class="control-btn" title="Import tracks from JSON">📥 Import</button>
+          <button id="exportBtn" class="control-btn" title="Export tracks to JSON">📤 Export</button>
+        </div>
+
+        <div id="filterInfo" class="filter-info">Showing all tracks</div>
+      </div>
+
+      <!-- Add Button -->
+      <button class="add-button" id="addTrack">+ Add New Talk Track</button>
+
+      <!-- Bulk Actions -->
+      <div id="bulkActions" class="bulk-actions" style="display: none;">
+        <span id="bulkCount" class="bulk-count">0 selected</span>
+        <button id="selectAllBtn" class="bulk-btn">Select All</button>
+        <button id="deselectAllBtn" class="bulk-btn">Deselect All</button>
+        <select id="bulkCategorySelect" class="bulk-category">
+          <!-- Categories populated dynamically by JavaScript -->
+        </select>
+        <button id="bulkDeleteBtn" class="bulk-btn bulk-delete">Delete Selected</button>
+      </div>
+
+      <!-- Track List -->
+      <div id="tracksList" class="tracks-container"></div>
+      
+      <div id="backupInfo" class="backup-info-container"></div>
+    </main>
+
+    <!-- Sidebar: Settings -->
+    <aside class="sidebar">
+      <!-- Quick Tips -->
+      <div class="sidebar-section tips-section">
+        <h3>💡 Quick Tips</h3>
+        <ul>
+          <li><strong>Click title</strong> to expand/collapse</li>
+          <li><strong>Drag ⋮⋮</strong> to reorder</li>
+          <li><strong>Checkboxes</strong> for bulk actions</li>
+          <li><code>*/dashboards/*</code> for patterns</li>
+          <li><code>**bold**</code> <code>*italic*</code> for formatting</li>
+        </ul>
+      </div>
+
+      <!-- URL Pattern Tester -->
+      <div class="sidebar-section url-tester">
+        <h3>🧪 URL Pattern Tester</h3>
+        <div class="tester-input-group">
+          <input 
+            type="text" 
+            id="testUrl" 
+            placeholder="Paste a URL to test..."
+            class="test-url-input"
+          />
+          <button id="testBtn" class="test-btn">Test</button>
+        </div>
+        <div id="testResults" class="test-results">
+          <p>Enter a URL to test pattern matching</p>
+        </div>
+      </div>
+
+      <!-- Base URL Settings -->
+      <div class="sidebar-section settings-section">
+        <h3>⚙️ Base URL</h3>
+        <div class="form-group">
+          <div class="base-url-input-group">
+            <input 
+              type="url" 
+              id="baseUrl" 
+              placeholder="https://app.datadoghq.com"
+              class="base-url-input"
+            />
+            <button type="button" id="saveBaseUrlBtn" class="save-btn small">Save</button>
+          </div>
+          <div class="base-url-presets">
+            <button type="button" class="preset-btn" data-url="https://app.datadoghq.com">US1</button>
+            <button type="button" class="preset-btn" data-url="https://us3.datadoghq.com">US3</button>
+            <button type="button" class="preset-btn" data-url="https://us5.datadoghq.com">US5</button>
+            <button type="button" class="preset-btn" data-url="https://app.datadoghq.eu">EU</button>
+            <button type="button" class="preset-btn" data-url="https://app.ddog-gov.com">Gov</button>
+            <button type="button" class="preset-btn" data-url="https://demo.datadoghq.com">Demo</button>
+          </div>
+          <div id="baseUrlStatus" class="status"></div>
+        </div>
+      </div>
+
+      <!-- Cloud Sync / Auth -->
+      <div class="sidebar-section cloud-sync-section">
+        <!-- Auth UI Container - populated by AuthUI class -->
+        <div id="authContainer"></div>
+        
+        <!-- Legacy GitHub Sync (shown when cloud not configured) -->
+        <div id="githubSyncSection" style="display: none;">
+          <h3>☁️ GitHub Sync (Legacy)</h3>
+          <p class="section-hint">Sync your talk tracks to GitHub for backup.</p>
+          
+          <div id="syncStatusContainer" class="sync-status-container">
+            <div class="sync-status-indicator">
+              <span class="sync-status-icon">⚪</span>
+              <span class="sync-status-text">Not configured</span>
+            </div>
+          </div>
+
+          <div id="githubSetup" class="github-setup">
+            <div class="form-group">
+              <label>GitHub Personal Access Token</label>
+              <input 
+                type="password" 
+                id="githubToken" 
+                placeholder="ghp_xxxx..." 
+                class="api-key-input"
+              />
+              <div class="token-help">
+                <a href="https://github.com/settings/tokens/new?scopes=gist&description=Demo%20Buddy%20Sync" target="_blank" class="token-link">
+                  🔗 Create token with 'gist' scope
+                </a>
+              </div>
+              <div class="github-actions">
+                <button id="connectGithubBtn" class="save-btn small">Connect</button>
+                <button id="disconnectGithubBtn" class="control-btn small" style="display: none;">Disconnect</button>
+              </div>
+              <div id="githubStatus" class="api-key-status"></div>
+            </div>
+          </div>
+
+          <div id="syncActions" class="sync-actions" style="display: none;">
+            <div class="sync-buttons">
+              <button id="syncNowBtn" class="sync-btn" title="Push local changes to cloud">
+                ⬆️ Sync Now
+              </button>
+              <button id="pullFromCloudBtn" class="sync-btn secondary" title="Pull from cloud backup">
+                ⬇️ Pull from Cloud
+              </button>
+            </div>
+            <div class="sync-info">
+              <span id="lastSyncInfo" class="last-sync-info"></span>
+            </div>
+            <button id="viewVersionsBtn" class="control-btn small" title="View and restore previous versions">
+              📜 Version History
+            </button>
+          </div>
+        </div>
+
+        <div id="storageUsage" class="storage-usage">
+          <div class="storage-bar">
+            <div id="storageBarFill" class="storage-bar-fill" style="width: 0%"></div>
+          </div>
+          <span id="storageUsageText" class="storage-usage-text">Loading...</span>
+        </div>
+      </div>
+
+      <!-- Track Packs -->
+      <div class="sidebar-section track-packs-section">
+        <h3>📦 Track Packs</h3>
+        
+        <div class="subscribed-packs">
+          <h4>Subscribed</h4>
+          <div id="subscribedPacksList" class="packs-list">
+            <p class="no-packs-message">No packs subscribed</p>
+          </div>
+          <button id="checkUpdatesBtn" class="control-btn small" title="Check for updates">
+            🔄 Check Updates
+          </button>
+          <span id="lastSyncTime" class="last-sync-time"></span>
+        </div>
+
+        <div class="available-packs">
+          <h4>Official Packs</h4>
+          <div id="availablePacksList" class="packs-list">
+            <!-- Will be populated by JS -->
+          </div>
+        </div>
+        
+        <div class="custom-pack-section">
+          <h4>Add Pack URL</h4>
+          <div class="custom-pack-input">
+            <input 
+              type="url" 
+              id="customPackUrl" 
+              placeholder="https://..."
+              class="pack-url-input"
+            />
+            <button id="addCustomPackBtn" class="control-btn small">Add</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Settings -->
+      <div class="sidebar-section ai-settings-section">
+        <h3>🤖 AI Generation</h3>
+        
+        <div class="form-group">
+          <label>OpenAI API Key</label>
+          <input 
+            type="password" 
+            id="openaiApiKey" 
+            placeholder="sk-..." 
+            class="api-key-input"
+          />
+          <div class="api-key-actions">
+            <button id="saveApiKeyBtn" class="control-btn small">Save</button>
+            <button id="testApiKeyBtn" class="control-btn small">Test</button>
+          </div>
+          <div id="apiKeyStatus" class="api-key-status"></div>
+        </div>
+
+        <div class="personas-section">
+          <h4>Personas</h4>
+          <div id="personasList" class="personas-list">
+            <!-- Personas will be rendered here -->
+          </div>
+          <button id="addPersonaBtn" class="control-btn small">+ Add Persona</button>
+        </div>
+      </div>
+
+      <!-- Demo Planner Connection -->
+      <div class="sidebar-section demo-planner-section">
+        <h3>📋 Demo Planner</h3>
+        <div class="form-group">
+          <label>SE Copilot URL</label>
+          <input
+            type="url"
+            id="seCopilotUrl"
+            placeholder="http://localhost:5070"
+            class="api-key-input"
+          />
+          <div class="api-key-actions">
+            <button id="saveCopilotUrlBtn" class="control-btn small">Save</button>
+            <button id="testCopilotUrlBtn" class="control-btn small">Test</button>
+          </div>
+          <div id="copilotUrlStatus" class="api-key-status"></div>
+        </div>
+      </div>
+
+      <!-- Customers -->
+      <div class="sidebar-section customers-section">
+        <h3>👥 Customers</h3>
+        <p class="section-hint">Create customer profiles with discovery notes for tailored talk tracks.</p>
+        <div id="customersList" class="customers-list">
+          <!-- Customers will be rendered here -->
+        </div>
+        <button id="addCustomerBtn" class="control-btn small">+ Add Customer</button>
+      </div>
+
+      <!-- Custom Categories -->
+      <div class="sidebar-section categories-section">
+        <h3>🏷️ Custom Categories</h3>
+        <div id="categoriesList" class="categories-list">
+          <!-- Categories will be rendered here -->
+        </div>
+        <button id="addCategoryBtn" class="control-btn small">+ Add Category</button>
+      </div>
+    </aside>
+  </div>
+
+  <link rel="stylesheet" href="quill.snow.css">
+  <script src="quill.min.js"></script>
+  <script src="marked.min.js"></script>
+  <script src="purify.min.js"></script>
+  <script src="ai-service.js"></script>
+  <script src="content-converter.js"></script>
+  <link rel="stylesheet" href="auth-ui.css">
+  <script src="track-pack-schema.js"></script>
+  <script src="track-pack-manager.js"></script>
+  <script src="config.js"></script>
+  <script src="indexed-db-storage.js"></script>
+  <script src="supabase-cloud-service.js"></script>
+  <script src="storage-manager-v2.js"></script>
+  <script src="auth-ui.js"></script>
+  <!-- Legacy - can be removed after migration -->
+  <script src="gist-sync-service.js"></script>
+  <script src="storage-manager.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

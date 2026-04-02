@@ -1,0 +1,12 @@
+{
+  "name": "demobuddy-extension",
+  "version": "1.2.0",
+  "description": "Datadog Demo Buddy - Talk track manager for demos and presentations",
+  "scripts": {
+    "package": "zip -r demobuddy-extension.zip . -x '*.git*' -x 'node_modules/*' -x 'config.js' -x '*.zip' -x '.DS_Store' -x '*.plan.md' -x 'package-lock.json'",
+    "package:clean": "rm -f demobuddy-extension.zip && npm run package"
+  },
+  "dependencies": {
+    "@datadog/browser-rum": "^6.24.1"
+  }
+}

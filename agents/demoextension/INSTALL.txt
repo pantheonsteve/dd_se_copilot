@@ -1,0 +1,76 @@
+✅ Datadog Demo Buddy - Installation Checklist
+================================================
+
+Run this in your terminal to verify all files are present:
+cd ~/Projects/demoextension && ls -la
+
+You should see these files:
+
+CORE FILES (Required):
+✓ manifest.json              - Extension configuration  
+✓ background.js              - Service worker
+✓ content.js                 - URL detection script
+✓ sidepanel.html             - Side panel UI
+✓ sidepanel.js               - Side panel logic
+✓ sidepanel.css              - Side panel styles
+✓ options.html               - Configuration page UI
+✓ options.js                 - Configuration page logic
+✓ options.css                - Configuration page styles
+
+ICONS (Required):
+✓ icons/icon16.png           - 16x16 extension icon
+✓ icons/icon48.png           - 48x48 extension icon
+✓ icons/icon128.png          - 128x128 extension icon
+
+DOCUMENTATION (Optional):
+✓ README.md                  - Full documentation
+✓ QUICKSTART.md              - Quick start guide
+✓ sample-config.js           - Demo data loader
+
+Total: 15 files (12 in root + 3 in icons/)
+
+INSTALLATION STEPS:
+===================
+
+1. Open Chrome and go to: chrome://extensions/
+
+2. Enable "Developer mode" (toggle top right)
+
+3. Click "Load unpacked"
+
+4. Select folder: /Users/steve.bresnick/Projects/demoextension
+
+5. Pin extension to toolbar (click puzzle piece icon)
+
+6. Navigate to any Datadog page
+
+7. Click the extension icon to open side panel
+
+8. Click "Configure Talk Tracks" to add your notes
+
+QUICK TEST WITH SAMPLE DATA:
+============================
+
+1. Right-click extension icon → Options
+2. Open DevTools (F12) → Console tab
+3. Copy/paste contents of sample-config.js
+4. Press Enter
+5. Reload options page
+6. You'll have 5 pre-configured talk tracks!
+
+TROUBLESHOOTING:
+================
+
+If you don't see all files:
+  cd ~/Projects/demoextension
+  ls -la
+
+The extension needs these 9 core files to work:
+  manifest.json, background.js, content.js,
+  sidepanel.html, sidepanel.js, sidepanel.css,
+  options.html, options.js, options.css
+  + 3 icon files in icons/ directory
+
+If any are missing, let me know!
+
+Ready to go! 🚀

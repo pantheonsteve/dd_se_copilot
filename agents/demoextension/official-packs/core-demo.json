@@ -1,0 +1,91 @@
+{
+  "id": "datadog-core-demo",
+  "name": "Datadog Core Demo Pack",
+  "version": "1.0.0",
+  "lastUpdated": "2024-12-05T00:00:00Z",
+  "author": "Datadog SE Team",
+  "description": "Essential talk tracks for core Datadog demos covering dashboards, APM, logs, infrastructure, and more.",
+  "tracks": [
+    {
+      "id": 1,
+      "title": "Dashboard Overview",
+      "category": "Dashboards",
+      "tags": ["overview", "getting-started", "visualization"],
+      "urlPattern": "*/dashboard/*",
+      "content": "## Dashboard Overview\n\nDatadog dashboards provide real-time visibility into your entire stack.\n\n### Key Points\n\n- **Unified View**: See metrics, traces, and logs in one place\n- **Customizable**: Drag and drop widgets to create the perfect view\n- **Shareable**: Share dashboards with your team or embed them externally\n\n### Demo Flow\n\n1. Show the template variable selectors at the top\n2. Highlight the different widget types (timeseries, heatmap, top list)\n3. Demonstrate drill-down by clicking on a data point\n4. Show the time range selector and live mode",
+      "order": 0,
+      "version": "1.0.0"
+    },
+    {
+      "id": 2,
+      "title": "APM Service Map",
+      "category": "APM",
+      "tags": ["apm", "distributed-tracing", "services"],
+      "urlPattern": "*/apm/map*",
+      "content": "## APM Service Map\n\nThe Service Map provides a visual representation of your entire microservices architecture.\n\n### Key Points\n\n- **Automatic Discovery**: Services are automatically detected from traces\n- **Health at a Glance**: Color-coded by error rate and latency\n- **Dependencies**: See upstream and downstream dependencies\n\n### Demo Flow\n\n1. Point out the different service types (web, database, cache)\n2. Show how hovering reveals key metrics\n3. Click on a service to see detailed metrics\n4. Demonstrate filtering by environment or team\n5. Show the request flow through the architecture",
+      "order": 1,
+      "version": "1.0.0"
+    },
+    {
+      "id": 3,
+      "title": "Log Explorer",
+      "category": "Logs",
+      "tags": ["logs", "search", "troubleshooting"],
+      "urlPattern": "*/logs*",
+      "content": "## Log Explorer\n\nDatadog Log Management provides powerful search and analysis capabilities.\n\n### Key Points\n\n- **Centralized Logging**: All logs in one place, regardless of source\n- **Powerful Search**: Full-text search with faceted filtering\n- **Live Tail**: Real-time log streaming for debugging\n- **Patterns**: Automatic pattern detection to reduce noise\n\n### Demo Flow\n\n1. Show the facet panel on the left for filtering\n2. Demonstrate a search query with multiple conditions\n3. Show log patterns to identify common issues\n4. Click into a log to show the full context\n5. Demonstrate pivoting to related traces or metrics",
+      "order": 2,
+      "version": "1.0.0"
+    },
+    {
+      "id": 4,
+      "title": "Infrastructure Host Map",
+      "category": "Infrastructure",
+      "tags": ["infrastructure", "hosts", "containers"],
+      "urlPattern": "*/infrastructure*",
+      "content": "## Infrastructure Host Map\n\nVisualize your entire infrastructure at a glance with the Host Map.\n\n### Key Points\n\n- **Real-time View**: See all hosts updated in real-time\n- **Grouping**: Group by any tag (availability zone, team, environment)\n- **Color Coding**: Highlight issues by coloring hosts by any metric\n- **Multi-cloud**: Works across AWS, Azure, GCP, and on-prem\n\n### Demo Flow\n\n1. Show grouping by availability zone or data center\n2. Color by CPU or memory utilization\n3. Hover over a host to see key metrics\n4. Click to drill down to host details\n5. Demonstrate filtering by tag",
+      "order": 3,
+      "version": "1.0.0"
+    },
+    {
+      "id": 5,
+      "title": "Monitors Overview",
+      "category": "Monitors",
+      "tags": ["alerting", "monitors", "notifications"],
+      "urlPattern": "*/monitors*",
+      "content": "## Monitors Overview\n\nDatadog Monitors provide proactive alerting across your entire stack.\n\n### Key Points\n\n- **Multi-Signal**: Alert on metrics, logs, traces, synthetics, and more\n- **Intelligent Alerting**: Anomaly detection, forecasting, outlier detection\n- **Flexible Notifications**: Route alerts to the right team via Slack, PagerDuty, etc.\n- **Composite Monitors**: Combine multiple conditions for sophisticated alerting\n\n### Demo Flow\n\n1. Show the different monitor types available\n2. Walk through creating a simple metric monitor\n3. Demonstrate the alert conditions and thresholds\n4. Show notification channels and message templates\n5. Highlight the monitor status page and history",
+      "order": 4,
+      "version": "1.0.0"
+    },
+    {
+      "id": 6,
+      "title": "RUM Application Overview",
+      "category": "RUM",
+      "tags": ["rum", "frontend", "user-experience"],
+      "urlPattern": "*/rum/*",
+      "content": "## Real User Monitoring (RUM)\n\nUnderstand how real users experience your application.\n\n### Key Points\n\n- **Core Web Vitals**: Track LCP, FID, CLS automatically\n- **User Sessions**: Replay user sessions to see exactly what happened\n- **Error Tracking**: Capture JavaScript errors with full context\n- **Performance**: Identify slow pages and resources\n\n### Demo Flow\n\n1. Show the application performance overview\n2. Highlight Core Web Vitals scores\n3. Demonstrate session replay for a user journey\n4. Show error tracking with stack traces\n5. Identify performance bottlenecks by page or resource",
+      "order": 5,
+      "version": "1.0.0"
+    },
+    {
+      "id": 7,
+      "title": "Synthetic Monitoring",
+      "category": "Synthetics",
+      "tags": ["synthetics", "testing", "uptime"],
+      "urlPattern": "*/synthetics/*",
+      "content": "## Synthetic Monitoring\n\nProactively monitor your applications before users are impacted.\n\n### Key Points\n\n- **API Tests**: Monitor endpoint availability and response times\n- **Browser Tests**: Simulate user journeys through your application\n- **Global Coverage**: Test from 100+ locations worldwide\n- **CI/CD Integration**: Run tests as part of your deployment pipeline\n\n### Demo Flow\n\n1. Show an existing browser test recording\n2. Demonstrate the test results and screenshots\n3. Highlight the global locations and scheduling\n4. Show how tests integrate with CI/CD\n5. Demonstrate the alerting on test failures",
+      "order": 6,
+      "version": "1.0.0"
+    },
+    {
+      "id": 8,
+      "title": "Security Signals",
+      "category": "Security",
+      "tags": ["security", "threats", "compliance"],
+      "urlPattern": "*/security/*",
+      "content": "## Security Monitoring\n\nDetect threats and security issues across your infrastructure and applications.\n\n### Key Points\n\n- **Threat Detection**: Out-of-the-box rules for common attack patterns\n- **Cloud Security**: Monitor misconfigurations across cloud providers\n- **Application Security**: Identify vulnerabilities in your code and dependencies\n- **Compliance**: Track compliance posture against frameworks\n\n### Demo Flow\n\n1. Show the security signals overview\n2. Drill into a specific security signal\n3. Demonstrate the investigation workflow\n4. Show cloud security posture management\n5. Highlight compliance reporting capabilities",
+      "order": 7,
+      "version": "1.0.0"
+    }
+  ]
+}
+

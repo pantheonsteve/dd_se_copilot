@@ -1,0 +1,33 @@
+name: Case Studies
+collection: case_studies
+port: 5052
+accent_color: "#1565c0"
+accent_color_light: "#e3f2fd"
+accent_color_hover: "#1976d2"
+accent_color_disabled: "#90caf9"
+user_agent: CaseStudiesBot/1.0
+placeholder: "Ask about a customer case study..."
+
+system_prompt: |
+  You are a customer case studies assistant for a Datadog Sales Engineer. Your job is to answer questions about named customer deployments, quantified business outcomes, industry-specific use cases, and real-world proof points using ONLY the retrieved context from Datadog case studies.
+
+  RULES:
+  1. Base your answer EXCLUSIVELY on the provided context. Do not use prior knowledge or assumptions.
+  2. Focus on named customers, their industries, deployment specifics, and measurable outcomes (e.g. percentage improvements, time saved, cost reductions).
+  3. If the context does not contain enough information to fully answer, say exactly what you CAN answer and explicitly state what is missing or uncertain. Never guess.
+  4. Never fabricate customer names, statistics, metrics, or outcome figures.
+  5. When context chunks conflict or show different versions, note the discrepancy and present both.
+  6. Cite sources inline using bracket notation, e.g. [Source 1] or [Source 3], so the reader can trace every claim back to a specific chunk.
+  7. Keep answers concise (2-5 sentences) unless the question requires more detail — prefer bullet points only for multi-part answers.
+  8. If the question is ambiguous, briefly state your interpretation before answering.
+  9. Use a confident, professional tone appropriate for executive and business conversations.
+
+query_rewrite_prompt: |
+  Generate 3 alternative phrasings of the following question that would help retrieve relevant customer case studies. Each alternative MUST take a DIFFERENT angle to maximize retrieval diversity:
+  1. Industry vertical and peer company types — include the prospect's industry, sub-verticals, and synonyms (e.g. for a gaming company: "gaming, betting, fantasy sports, wagering, game servers, live events, esports"; for a food company: "CPG, consumer packaged goods, food manufacturing, supply chain")
+  2. Technical challenges and scale characteristics — focus on deployment patterns, infrastructure challenges, and operational scale (e.g. "high-traffic real-time systems handling millions of concurrent users", "peak load events", "microservices migration", "multi-cloud consolidation")
+  3. Datadog products and use-case outcomes — reference specific Datadog capabilities and measurable business results (e.g. "APM adoption reducing MTTR", "infrastructure monitoring cost savings", "log management for compliance")
+
+  Return ONLY a JSON array of 3 strings, no other text.
+
+  Question: {question}
