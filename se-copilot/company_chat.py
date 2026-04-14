@@ -40,6 +40,7 @@ You have access to the following artifacts for the company in question:
 - Strategy/research reports
 - Pre-call briefs
 - Slack channel summaries from internal team discussions
+- Release note digests (personalized Datadog product releases scored for relevance to this account)
 
 Rules:
 1. Ground every claim in a specific artifact — cite what you found (e.g. "the Jan 15 \
@@ -227,6 +228,43 @@ def _format_company_notes(company_notes: list[dict]) -> str:
     return "\n".join(parts)
 
 
+def _format_release_digests(digests: list[dict]) -> str:
+    """Format saved release note digests for context."""
+    if not digests:
+        return ""
+
+    parts = [f"RELEASE NOTE DIGESTS ({len(digests)}, most recent first):"]
+    for d in digests:
+        created = d.get("created_at", "")[:10]
+        headline = d.get("headline", "Untitled digest")
+        parts.append(f"\n--- {headline} ({created}) ---")
+
+        intro = (d.get("intro_paragraph") or "").strip()
+        if intro:
+            parts.append(f"  {intro[:300]}")
+
+        featured = d.get("featured_releases", [])
+        if featured:
+            parts.append(f"  Featured releases ({len(featured)}):")
+            for r in featured:
+                score = r.get("relevance_score", "?")
+                parts.append(f"    [{r.get('category', '')}] {r.get('title', '')} (relevance: {score}/10)")
+                why = (r.get("why_it_matters") or "").strip()
+                if why:
+                    parts.append(f"      Why it matters: {why[:200]}")
+                talk = (r.get("talk_track") or "").strip()
+                if talk:
+                    parts.append(f"      Talk track: {talk[:200]}")
+
+        other = d.get("other_relevant_releases", [])
+        if other:
+            parts.append(f"  Other relevant releases ({len(other)}):")
+            for r in other:
+                parts.append(f"    [{r.get('category', '')}] {r.get('title', '')}")
+
+    return "\n".join(parts)
+
+
 def _build_context(artifacts: dict, company_name: str) -> str:
     """Assemble all artifacts into a single context block for the LLM."""
     sections = [
@@ -252,6 +290,10 @@ def _build_context(artifacts: dict, company_name: str) -> str:
     slack = _format_slack_summaries(artifacts.get("slack_summaries", []))
     if slack:
         sections.extend(["", slack])
+
+    digests = _format_release_digests(artifacts.get("release_digests", []))
+    if digests:
+        sections.extend(["", digests])
 
     return "\n".join(sections)
 

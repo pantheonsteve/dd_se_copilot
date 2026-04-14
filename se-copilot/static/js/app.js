@@ -68,6 +68,8 @@
       ? "companies/detail/" + encodeURIComponent(companyDetailKey)
       : page;
     history.pushState({ page: hashValue }, "", "#" + hashValue);
+
+    if (window.ddRumStartView) window.ddRumStartView(page);
   }
 
   // Sidebar nav clicks — clear company context so breadcrumbs only show via Quick Actions

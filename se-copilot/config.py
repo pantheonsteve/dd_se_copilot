@@ -45,5 +45,10 @@ class Settings(BaseSettings):
     )
     datadog_mcp_timeout_seconds: int = 30
 
+    # Datadog RUM / Product Analytics (client-side — served via /api/rum-config)
+    dd_rum_application_id: str = ""
+    dd_rum_client_token: str = ""
+
+
 
 settings = Settings()

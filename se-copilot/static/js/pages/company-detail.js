@@ -10,6 +10,7 @@ window.companyDetailPage = (function () {
   var _activeTab = 'snapshot';
   var _chatExpanded = false;
   var _chatLoaded = false;
+  var _nextStepsLoading = false;
 
   // -----------------------------------------------------------------------
   // Entry point
@@ -20,6 +21,7 @@ window.companyDetailPage = (function () {
     _data = null;
     _snapshot = null;
     _snapshotLoading = false;
+    _nextStepsLoading = false;
     _activeTab = 'snapshot';
     _chatExpanded = false;
     _chatLoaded = false;
@@ -45,12 +47,50 @@ window.companyDetailPage = (function () {
       '</div>';
   }
 
+  function artifactCount() {
+    return (_data && _data.stats && _data.stats.total_artifacts) || 0;
+  }
+
+  function shouldAutoGenerateNextSteps() {
+    if (artifactCount() === 0) return false;
+    var ns = _data.next_steps;
+    if (!ns) return true;
+    var latest = _data.stats && _data.stats.latest_activity;
+    if (latest && ns.created_at && latest > ns.created_at) return true;
+    return false;
+  }
+
+  async function runNextStepsAutoGeneration() {
+    try {
+      var payload = { company_name: _data.company.name };
+      if (_data.company.id) payload.company_id = _data.company.id;
+      await API.generateNextSteps(payload);
+      _data = await API.getCompanyProfile(_key);
+    } catch (e) {
+      console.error("Next steps auto-generation failed:", e);
+    } finally {
+      _nextStepsLoading = false;
+      patchNextStepsRegion();
+    }
+  }
+
+  function patchNextStepsRegion() {
+    var mount = document.getElementById("cdNextStepsRegion");
+    if (mount) mount.innerHTML = renderNextStepsBlock();
+    var panel = document.querySelector('.cd-tab-panel[data-panel="next_steps"]');
+    if (panel) panel.innerHTML = renderNextStepsTabContent();
+  }
+
   async function load() {
     try {
       _data = await API.getCompanyProfile(_key);
+      _nextStepsLoading = shouldAutoGenerateNextSteps();
       renderPage();
       loadSnapshot();
       loadSlack();
+      if (_nextStepsLoading) {
+        runNextStepsAutoGeneration();
+      }
     } catch (e) {
       document.querySelector(".cd-body").innerHTML =
         '<div class="cd-error">Failed to load company: ' + MD.escapeHtml(e.message) + '</div>';
@@ -107,7 +147,7 @@ window.companyDetailPage = (function () {
         '<div class="cd-col-right">' +
           renderOverviewCard(c, stats) +
           renderQuickActions() +
-          renderNextStepsCard() +
+          '<div id="cdNextStepsRegion">' + renderNextStepsBlock() + '</div>' +
           '<div class="cd-section cd-slack-section">' +
             '<div class="cd-section-header">' +
               '<h2>Slack Context</h2>' +
@@ -409,10 +449,17 @@ window.companyDetailPage = (function () {
   }
 
   function renderNextStepsTabContent() {
+    if (_nextStepsLoading) {
+      return '<div class="cd-loading-inline"><span class="spinner"></span> Generating next steps\u2026</div>';
+    }
     var ns = _data.next_steps;
     if (!ns) return '<div class="cd-empty">No next steps plan yet.</div>';
-    var preview = (ns.summary_preview || '').substring(0, 200).replace(/\n/g, ' ');
-    if ((ns.summary_preview || '').length > 200) preview += '\u2026';
+    var raw = (ns.recommended_focus || ns.summary_preview || '').trim();
+    if (!raw && ns.next_steps && ns.next_steps.length) {
+      raw = (ns.next_steps[0].action || '');
+    }
+    var preview = raw.substring(0, 220).replace(/\n/g, ' ');
+    if (raw.length > 220) preview += '\u2026';
     return (
       '<div class="cd-artifact-row cd-clickable" onclick="companyDetailPage.openNextSteps(\'' + ns.id + '\')">' +
         '<div class="cd-artifact-row-header">' +
@@ -420,7 +467,7 @@ window.companyDetailPage = (function () {
           '<span class="cd-artifact-row-title">Next Steps Plan</span>' +
           '<span class="artifact-row-date">' + MD.formatDate(ns.created_at) + '</span>' +
         '</div>' +
-        '<p class="cd-artifact-preview">' + MD.escapeHtml(preview) + '</p>' +
+        (preview ? '<p class="cd-artifact-preview">' + MD.escapeHtml(preview) + '</p>' : '') +
       '</div>'
     );
   }
@@ -686,20 +733,119 @@ window.companyDetailPage = (function () {
   }
 
   // -----------------------------------------------------------------------
-  // Next Steps card (right column)
+  // Next Steps + close timeline (right column)
   // -----------------------------------------------------------------------
 
-  function renderNextStepsCard() {
+  function renderNextStepsBlock() {
+    return renderNextStepsCard() + renderCloseTimelineCard();
+  }
+
+  function renderCloseTimelineCard() {
+    if (_nextStepsLoading) return '';
     var ns = _data.next_steps;
-    if (!ns) return '';
+    var ct = ns && ns.close_timeline;
+    if (!ct || !ct.summary) return '';
+    var conf = (ct.confidence || 'low').toLowerCase();
+    var ev = ct.evidence || [];
+    var evHtml = ev.slice(0, 8).map(function (line) {
+      return '<li>' + MD.escapeHtml(line) + '</li>';
+    }).join('');
+    return (
+      '<div class="cd-section cd-close-timeline-card">' +
+        '<div class="cd-section-header cd-close-timeline-header">' +
+          '<h2>Close timeline</h2>' +
+          '<span class="cd-conf-badge cd-conf-' + MD.escapeHtml(conf) + '">' + MD.escapeHtml(conf) + '</span>' +
+        '</div>' +
+        '<div class="cd-section-body">' +
+          '<p class="cd-close-timeline-summary">' + MD.escapeHtml(ct.summary) + '</p>' +
+          (evHtml ? '<ul class="cd-close-timeline-evidence">' + evHtml + '</ul>' : '') +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function renderNextStepsCard() {
+    if (_nextStepsLoading) {
+      return (
+        '<div class="cd-section cd-next-steps-card">' +
+          '<div class="cd-section-header"><h2>Next Steps</h2></div>' +
+          '<div class="cd-section-body"><div class="cd-loading-inline"><span class="spinner"></span> Generating next steps\u2026</div></div>' +
+        '</div>'
+      );
+    }
+
+    var ns = _data.next_steps;
+    if (!ns) {
+      if (artifactCount() === 0) {
+        return (
+          '<div class="cd-section cd-next-steps-card">' +
+            '<div class="cd-section-header"><h2>Next Steps</h2></div>' +
+            '<div class="cd-section-body cd-empty">Add artifacts (hypothesis, call notes, demo plans, etc.) to generate a prioritized plan.</div>' +
+          '</div>'
+        );
+      }
+      return (
+        '<div class="cd-section cd-next-steps-card">' +
+          '<div class="cd-section-header"><h2>Next Steps</h2></div>' +
+          '<div class="cd-section-body">' +
+            '<p class="cd-empty">No plan is available right now.</p>' +
+            '<button type="button" class="btn btn-sm btn-primary cd-action-full" onclick="companyDetailPage.quickAction(\'next-steps\')">Open Next Steps</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    var STAGE_LABELS = {
+      prospecting: 'Prospecting',
+      discovery: 'Discovery',
+      demo_complete: 'Demo complete',
+      active_evaluation: 'Active evaluation',
+      evaluation: 'Evaluation / POC',
+      expansion_or_renewal: 'Expansion / renewal',
+      unknown: 'Unknown',
+    };
+    var stageKey = ns.inferred_deal_stage || 'unknown';
+    var stageLabel = STAGE_LABELS[stageKey] || stageKey;
+    var dsc = (ns.deal_stage_confidence || 'medium').toLowerCase();
+
+    var steps = (ns.next_steps || []).slice().sort(function (a, b) {
+      return (a.priority || 99) - (b.priority || 99);
+    });
+    var top = steps.slice(0, 3);
+    var stepRows = top.map(function (s) {
+      return (
+        '<div class="cd-next-step-row">' +
+          '<span class="cd-next-step-priority">P' + (s.priority != null ? s.priority : '?') + '</span>' +
+          '<div class="cd-next-step-body">' +
+            '<div class="cd-next-step-action">' + MD.escapeHtml(s.action || '') + '</div>' +
+            '<div class="cd-next-step-meta">' +
+              (s.owner ? '<span>' + MD.escapeHtml(s.owner) + '</span>' : '') +
+              (s.timeframe ? '<span>' + MD.escapeHtml(s.timeframe) + '</span>' : '') +
+            '</div>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+
+    var focus = (ns.recommended_focus || ns.summary_preview || '').trim();
 
     return (
       '<div class="cd-section cd-next-steps-card">' +
-        '<div class="cd-section-header"><h2>Latest Next Steps</h2></div>' +
+        '<div class="cd-section-header cd-next-steps-header">' +
+          '<h2>Next Steps</h2>' +
+          '<span class="cd-next-steps-meta">' +
+            '<span class="cd-stage-pill">' + MD.escapeHtml(stageLabel) + '</span>' +
+            '<span class="cd-conf-badge cd-conf-' + MD.escapeHtml(dsc) + '">' + MD.escapeHtml(dsc) + '</span>' +
+          '</span>' +
+        '</div>' +
         '<div class="cd-section-body">' +
-          '<div class="cd-next-steps-content">' +
-            '<p class="cd-artifact-preview">' + MD.escapeHtml(ns.summary_preview) + '</p>' +
-            '<span class="artifact-row-date">' + MD.formatDate(ns.created_at) + '</span>' +
+          (focus
+            ? '<div class="cd-next-steps-focus"><span class="cd-next-steps-focus-label">Focus</span><p>' + MD.escapeHtml(focus) + '</p></div>'
+            : '') +
+          (stepRows ? '<div class="cd-next-steps-list">' + stepRows + '</div>' : '') +
+          '<div class="cd-next-steps-footer">' +
+            '<span class="artifact-row-date">Updated ' + MD.formatDate(ns.created_at) + '</span>' +
+            '<button type="button" class="btn btn-sm btn-outline" onclick="companyDetailPage.openNextSteps(\'' + ns.id + '\')">View full plan</button>' +
           '</div>' +
         '</div>' +
       '</div>'
@@ -1381,6 +1527,23 @@ window.companyDetailPage = (function () {
       body += '<div class="cd-inline-card" style="border:2px solid var(--primary,#6366f1);background:var(--primary-light,#eef2ff);">' +
         '<div style="font-weight:700;color:var(--primary,#6366f1);margin-bottom:.3rem;">Recommended Focus</div>' +
         '<div style="font-size:.92rem;">' + MD.escapeHtml(data.recommended_focus) + '</div></div>';
+    }
+
+    var ct = data.close_timeline;
+    if (ct && ct.summary) {
+      var cconf = (ct.confidence || 'low').toLowerCase();
+      var ev = ct.evidence || [];
+      body += '<div class="cd-inline-card cd-close-timeline-inline" style="border:2px solid #0ea5e9;background:#f0f9ff;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.35rem;">' +
+        '<div style="font-weight:700;color:#0369a1;">Close timeline</div>' +
+        '<span class="cd-conf-badge cd-conf-' + MD.escapeHtml(cconf) + '">' + MD.escapeHtml(cconf) + '</span></div>' +
+        '<div style="font-size:.92rem;margin-bottom:.4rem;">' + MD.escapeHtml(ct.summary) + '</div>' +
+        (ev.length
+          ? '<ul style="margin:0;padding-left:1.1rem;font-size:.82rem;color:var(--text-muted);">' +
+            ev.map(function (line) { return '<li>' + MD.escapeHtml(line) + '</li>'; }).join('') +
+            '</ul>'
+          : '') +
+        '</div>';
     }
 
     var steps = (data.next_steps || []).slice().sort(function (a, b) { return (a.priority || 99) - (b.priority || 99); });

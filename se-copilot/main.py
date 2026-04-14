@@ -30,7 +30,7 @@ LLMObs.enable(
 
 from config import settings
 from gap_logger import aggregate_gaps, log_gaps
-from pydantic import BaseModel as _BaseModel
+from pydantic import BaseModel as _BaseModel, ValidationError
 
 from models import (
     AgentInventoryItem,
@@ -82,7 +82,13 @@ from expansion_store import (
     list_expansion_playbooks,
     save_expansion_playbook,
 )
-from next_steps_models import NextStepsRequest, NextStepsResponse, NextStepsSummary
+from next_steps_models import (
+    CloseTimeline,
+    NextStep,
+    NextStepsRequest,
+    NextStepsResponse,
+    NextStepsSummary,
+)
 from next_steps_store import (
     delete_next_steps,
     find_next_steps_by_company,
@@ -345,6 +351,19 @@ async def get_report_by_id(report_id: str):
 async def delete_report_by_id(report_id: str):
     deleted = delete_report(report_id)
     return {"deleted": deleted}
+
+
+@app.get("/api/rum-config")
+async def rum_config():
+    """Serve RUM credentials to the frontend so they stay in .env, not in source."""
+    if not settings.dd_rum_application_id or not settings.dd_rum_client_token:
+        return {"enabled": False}
+    return {
+        "enabled": True,
+        "applicationId": settings.dd_rum_application_id,
+        "clientToken": settings.dd_rum_client_token,
+    }
+
 
 @task(name="inventory")
 @app.get("/api/inventory")
@@ -1745,10 +1764,23 @@ async def company_profile(key: str):
     next_steps_record = find_next_steps_by_company(company_name)
     next_steps_data = None
     if next_steps_record:
+        steps = next_steps_record.get("next_steps") or []
+        rf = (next_steps_record.get("recommended_focus") or "").strip()
+        preview = rf[:400] if rf else ""
+        if not preview and steps:
+            first = steps[0] if isinstance(steps[0], dict) else {}
+            preview = (first.get("action") or "")[:400]
         next_steps_data = {
             "id": next_steps_record["id"],
             "created_at": next_steps_record["created_at"],
-            "summary_preview": (next_steps_record.get("markdown") or "")[:400],
+            "recommended_focus": rf,
+            "inferred_deal_stage": next_steps_record.get("inferred_deal_stage", ""),
+            "deal_stage_confidence": next_steps_record.get("deal_stage_confidence", "medium"),
+            "next_steps": steps[:7],
+            "blocking_risks": next_steps_record.get("blocking_risks") or [],
+            "missing_artifacts": next_steps_record.get("missing_artifacts") or [],
+            "close_timeline": next_steps_record.get("close_timeline"),
+            "summary_preview": preview,
         }
 
     # Stats
@@ -1776,13 +1808,15 @@ async def company_profile(key: str):
         dates.append(cn["created_at"])
     for pb in precall_data:
         dates.append(pb["created_at"])
-    latest_activity = max(dates) if dates else company_meta.get("created_at", "")
-
-    cached_snapshot = get_latest_snapshot(company_name)
-
     notes_list = []
     if company_meta.get("is_defined") and company_meta.get("id"):
         notes_list = list_company_notes(company_meta["id"])
+        for n in notes_list:
+            if n.get("created_at"):
+                dates.append(n["created_at"])
+    latest_activity = max(dates) if dates else company_meta.get("created_at", "")
+
+    cached_snapshot = get_latest_snapshot(company_name)
 
     return {
         "company": company_meta,
@@ -1898,7 +1932,14 @@ async def handle_next_steps(req: NextStepsRequest) -> NextStepsResponse:
 
     total_ms = int((time.perf_counter() - start) * 1000)
 
-    from next_steps_models import NextStep
+    close_timeline: CloseTimeline | None = None
+    raw_ct = synthesis.get("close_timeline")
+    if raw_ct:
+        try:
+            close_timeline = CloseTimeline(**raw_ct)
+        except ValidationError:
+            close_timeline = None
+
     response = NextStepsResponse(
         company_name=company_name,
         inferred_deal_stage=synthesis["inferred_deal_stage"],
@@ -1907,6 +1948,7 @@ async def handle_next_steps(req: NextStepsRequest) -> NextStepsResponse:
         blocking_risks=synthesis["blocking_risks"],
         missing_artifacts=synthesis["missing_artifacts"],
         recommended_focus=synthesis["recommended_focus"],
+        close_timeline=close_timeline,
         processing_time_ms=total_ms,
     )
 
@@ -2165,7 +2207,7 @@ def _gather_company_artifacts(company_name: str) -> dict:
 
     Returns a dict with keys: hypothesis, call_notes, demo_plans,
     expansion_playbook, reports, slack_summaries, precall_briefs,
-    company_notes.
+    company_notes, release_digests.
     """
     company_norm = _normalize_company_name(company_name).lower()
 
@@ -2221,6 +2263,14 @@ def _gather_company_artifacts(company_name: str) -> dict:
             company_notes = list_company_notes(dc["id"])
             break
 
+    # Load most recent release digests (full data, capped at 2)
+    release_digests: list[dict] = []
+    digest_summaries = find_digests_by_company(company_name)
+    for ds in digest_summaries[:2]:
+        full = get_digest(ds["id"])
+        if full:
+            release_digests.append(full)
+
     return {
         "hypothesis": hypothesis,
         "call_notes": call_notes,
@@ -2230,6 +2280,7 @@ def _gather_company_artifacts(company_name: str) -> dict:
         "slack_summaries": slack_summaries,
         "precall_briefs": precall_briefs,
         "company_notes": company_notes,
+        "release_digests": release_digests,
     }
 
 

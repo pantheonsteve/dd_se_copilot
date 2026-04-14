@@ -5,6 +5,17 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+class CloseTimeline(BaseModel):
+    """Evidence-backed estimate of when the deal may close — only when artifacts support it."""
+
+    summary: str  # short human-readable window (e.g. decision before FY end, Q2 2026)
+    confidence: str  # high | medium | low
+    evidence: list[str] = Field(
+        default_factory=list,
+        description="Each line cites artifact + explicit timing signal",
+    )
+
+
 class NextStep(BaseModel):
     """A single prioritized action item."""
 
@@ -28,6 +39,7 @@ class NextStepsResponse(BaseModel):
     blocking_risks: list[str] = Field(default_factory=list)
     missing_artifacts: list[str] = Field(default_factory=list)
     recommended_focus: str = ""  # single sentence: the one thing that matters most right now
+    close_timeline: CloseTimeline | None = None  # only when explicit timing evidence exists
     processing_time_ms: int = 0
 
 

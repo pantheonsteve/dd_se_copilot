@@ -38,10 +38,19 @@ def _get_conn() -> sqlite3.Connection:
     return conn
 
 
+def _migrate_schema(conn: sqlite3.Connection) -> None:
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(next_steps)").fetchall()}
+    if "close_timeline_json" not in cols:
+        conn.execute(
+            "ALTER TABLE next_steps ADD COLUMN close_timeline_json TEXT DEFAULT ''"
+        )
+
+
 def init_db() -> None:
     conn = _get_conn()
     try:
         conn.execute(_CREATE_NEXT_STEPS)
+        _migrate_schema(conn)
         conn.commit()
     finally:
         conn.close()
@@ -58,6 +67,12 @@ def _generate_id() -> str:
     return f"ns-{stamp}-{short_hash}"
 
 
+def _close_timeline_to_json(response: NextStepsResponse) -> str:
+    if response.close_timeline is None:
+        return ""
+    return json.dumps(response.close_timeline.model_dump())
+
+
 def save_next_steps(response: NextStepsResponse) -> str:
     """Persist a next steps plan. Returns the record ID."""
     record_id = _generate_id()
@@ -65,12 +80,14 @@ def save_next_steps(response: NextStepsResponse) -> str:
 
     conn = _get_conn()
     try:
+        _migrate_schema(conn)
         conn.execute(
             """INSERT INTO next_steps
                (id, created_at, company_name, inferred_deal_stage,
                 deal_stage_confidence, next_steps_json, blocking_risks_json,
-                missing_artifacts_json, recommended_focus, processing_time_ms)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                missing_artifacts_json, recommended_focus, processing_time_ms,
+                close_timeline_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 record_id,
                 now,
@@ -82,6 +99,7 @@ def save_next_steps(response: NextStepsResponse) -> str:
                 json.dumps(response.missing_artifacts),
                 response.recommended_focus,
                 response.processing_time_ms,
+                _close_timeline_to_json(response),
             ),
         )
         conn.commit()
@@ -90,6 +108,22 @@ def save_next_steps(response: NextStepsResponse) -> str:
         conn.close()
 
     return record_id
+
+
+def _row_close_timeline(row: sqlite3.Row) -> dict | None:
+    try:
+        raw = row["close_timeline_json"]
+    except (KeyError, IndexError):
+        return None
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict) and data.get("summary"):
+            return data
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return None
 
 
 def list_next_steps() -> list[NextStepsSummary]:
@@ -142,6 +176,7 @@ def get_next_steps(record_id: str) -> dict | None:
             "missing_artifacts": json.loads(row["missing_artifacts_json"] or "[]"),
             "recommended_focus": row["recommended_focus"],
             "processing_time_ms": row["processing_time_ms"],
+            "close_timeline": _row_close_timeline(row),
         }
     finally:
         conn.close()
@@ -170,6 +205,7 @@ def find_next_steps_by_company(company_name: str) -> dict | None:
             "missing_artifacts": json.loads(row["missing_artifacts_json"] or "[]"),
             "recommended_focus": row["recommended_focus"],
             "processing_time_ms": row["processing_time_ms"],
+            "close_timeline": _row_close_timeline(row),
         }
     finally:
         conn.close()

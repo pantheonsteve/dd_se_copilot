@@ -123,6 +123,23 @@ Examples:
 
 ---
 
+CLOSE TIMELINE (OPTIONAL — STRICT EVIDENCE RULES):
+
+Only include "close_timeline" when the artifacts contain an EXPLICIT timing signal tied to \
+closing the business or a decision milestone. Examples: specific calendar dates, quarters \
+(Q1 2026), fiscal year references, "close by", renewal month, procurement/legal deadline, \
+board approval window, budget cycle end.
+
+If there is no explicit timing signal in any artifact, set "close_timeline" to null. \
+Do NOT infer a close window from deal stage, typical sales cycles, or general optimism.
+
+When you do include close_timeline:
+- "summary": one concise sentence describing the inferred window or milestone.
+- "confidence": high (multiple consistent signals), medium (one clear signal), low (single weak signal).
+- "evidence": 1-4 strings, each naming the artifact and quoting or paraphrasing the timing signal.
+
+---
+
 OUTPUT FORMAT:
 
 Respond with ONLY a JSON object matching this schema exactly:
@@ -148,8 +165,31 @@ Respond with ONLY a JSON object matching this schema exactly:
   "missing_artifacts": [
     "description of missing artifact and which agent to run"
   ],
-  "recommended_focus": "single sentence: the one thing that makes the most difference right now"
-}"""
+  "recommended_focus": "single sentence: the one thing that makes the most difference right now",
+  "close_timeline": null
+}
+
+Use close_timeline as either null OR an object with summary, confidence, and evidence array.
+"""
+
+
+def _parse_close_timeline(raw: object) -> dict | None:
+    """Normalize LLM output; return None if no evidence-backed timeline."""
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        return None
+    summary = (raw.get("summary") or "").strip()
+    if not summary:
+        return None
+    conf = raw.get("confidence") or "low"
+    if conf not in ("high", "medium", "low"):
+        conf = "low"
+    ev = raw.get("evidence")
+    if not isinstance(ev, list):
+        ev = []
+    evidence = [str(x).strip() for x in ev if str(x).strip()]
+    return {"summary": summary, "confidence": conf, "evidence": evidence}
 
 
 def _format_hypothesis(hyp: dict | None) -> str:
@@ -440,6 +480,7 @@ async def synthesize_next_steps(
             "blocking_risks": data.get("blocking_risks", []),
             "missing_artifacts": data.get("missing_artifacts", []),
             "recommended_focus": data.get("recommended_focus", ""),
+            "close_timeline": _parse_close_timeline(data.get("close_timeline")),
         }
 
     except (json.JSONDecodeError, KeyError, ValueError) as exc:
@@ -459,4 +500,5 @@ def _fallback_next_steps(company_name: str, error_msg: str) -> dict:
         "blocking_risks": [f"Next steps synthesis failed: {error_msg}"],
         "missing_artifacts": [],
         "recommended_focus": "Retry next steps generation or review artifacts manually.",
+        "close_timeline": None,
     }

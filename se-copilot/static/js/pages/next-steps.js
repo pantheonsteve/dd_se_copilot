@@ -268,6 +268,13 @@ window.nextStepsPage = (function () {
         <p class="ns-focus-text">${MD.escapeHtml(resp.recommended_focus || 'No focus recommendation generated.')}</p>
       </div>
 
+      ${resp.close_timeline && resp.close_timeline.summary ? `
+      <div class="card ns-focus-card" style="border-color:#0ea5e9;background:#f0f9ff;">
+        <div class="ns-focus-label">📅 Close timeline <span class="badge" style="margin-left:.35rem">${MD.escapeHtml((resp.close_timeline.confidence || 'low'))}</span></div>
+        <p class="ns-focus-text">${MD.escapeHtml(resp.close_timeline.summary)}</p>
+        ${(resp.close_timeline.evidence || []).length ? `<ul style="margin:.5rem 0 0 1rem;font-size:.82rem;color:var(--text-muted);line-height:1.45;">${(resp.close_timeline.evidence || []).map(e => `<li>${MD.escapeHtml(e)}</li>`).join('')}</ul>` : ''}
+      </div>` : ''}
+
       <!-- Steps -->
       <div class="card" style="padding:0;overflow:hidden;">
         <div style="padding:1rem 1.25rem .5rem;border-bottom:1px solid var(--border);">
