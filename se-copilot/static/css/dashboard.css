@@ -2291,6 +2291,145 @@ textarea { resize: vertical; min-height: 70px; }
   background: #eff6ff;
   color: #3b82f6;
 }
+.tag-homerun {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+/* Homerun template tab (company detail) */
+.cd-homerun-template {
+  max-width: 100%;
+}
+.cd-homerun-template-intro {
+  font-size: 0.88rem;
+  color: var(--text-muted, #64748b);
+  margin: 0 0 1rem 0;
+  line-height: 1.5;
+}
+.cd-homerun-template-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+}
+.cd-homerun-opp-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary, #475569);
+}
+select.cd-homerun-opp-select {
+  min-width: 200px;
+  max-width: 100%;
+  flex: 1;
+}
+.cd-homerun-template-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.cd-homerun-field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.cd-homerun-field-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text, #1e293b);
+}
+textarea.cd-homerun-field-textarea {
+  width: 100%;
+  min-height: 5rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+textarea.cd-homerun-field-readonly {
+  background: var(--surface-2, #f8fafc);
+  cursor: default;
+  resize: none;
+}
+.cd-homerun-template-prompt {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.cd-homerun-template-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.cd-homerun-template-empty {
+  padding: 0.5rem 0;
+}
+.cd-error-inline {
+  font-size: 0.82rem;
+  color: var(--danger, #dc2626);
+}
+.cd-homerun-info {
+  color: var(--text-muted, #64748b) !important;
+  font-weight: 500;
+}
+
+/* Snowflake tab: Homerun + Salesforce sections */
+.cd-snowflake-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.cd-snowflake-subheading {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text, #1e293b);
+  margin: 0 0 0.5rem 0;
+  letter-spacing: 0.02em;
+}
+.cd-snowflake-sf-section {
+  border-top: 1px solid var(--border, #e2e8f0);
+  padding-top: 1.25rem;
+}
+.cd-snowflake-sf-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.cd-sf-table-wrap {
+  overflow: auto;
+  max-height: 280px;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+}
+.cd-sf-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.cd-sf-data-table th,
+.cd-sf-data-table td {
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  vertical-align: top;
+}
+.cd-sf-data-table th {
+  background: var(--surface-2, #f8fafc);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.cd-sf-summary {
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
 .artifact-count {
   background: rgba(0,0,0,.1);
   border-radius: 50%;

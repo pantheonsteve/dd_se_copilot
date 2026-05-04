@@ -168,7 +168,15 @@ def delete_company(company_id: str) -> bool:
 # Resource linking
 # ---------------------------------------------------------------------------
 
-_VALID_RESOURCE_TYPES = {"hypothesis", "report", "demo_plan", "expansion_playbook", "call_note", "precall_brief"}
+_VALID_RESOURCE_TYPES = {
+    "hypothesis",
+    "report",
+    "demo_plan",
+    "expansion_playbook",
+    "call_note",
+    "precall_brief",
+    "homerun_opportunity",
+}
 
 
 def link_resource(company_id: str, resource_type: str, resource_id: str) -> dict:

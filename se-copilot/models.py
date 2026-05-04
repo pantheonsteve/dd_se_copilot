@@ -51,6 +51,12 @@ class QueryRequest(BaseModel):
     sec_filing_ticker: str | None = None
     company_context: str | None = None
     hypothesis_context: str | None = None
+    # Homerun: optional Snowflake-backed deal context (REPORTING.GENERAL)
+    homerun_opportunity_uuid: str | None = None
+    homerun_salesforce_opportunity_id: str | None = None
+    # If both ids are set, the server looks up by UUID; Salesforce id must match the row.
+    homerun_context: str | None = None
+    # Manual block when Snowflake is off, or after failed load; overridden by a successful load.
 
 
 # --- Internal Models ---
@@ -106,6 +112,7 @@ class PipelineContext(BaseModel):
     stage_timings_ms: dict[str, int] = Field(default_factory=dict)
     extensions: dict[str, Any] = Field(default_factory=dict)
     hypothesis_context: str | None = None
+    homerun_context: str | None = None
 
 
 # --- API Response Models ---

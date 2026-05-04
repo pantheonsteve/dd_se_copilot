@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Support Admin Copilot",
+  "version": "0.1.5",
+  "description": "Datadog Support Admin assistant — page context, screenshots, and analysis via SE Copilot",
+  "permissions": [
+    "activeTab",
+    "debugger",
+    "scripting",
+    "sidePanel",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://*.datadoghq.com/*",
+    "https://*.datadoghq.eu/*",
+    "https://*.datad0g.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.datadoghq.com/*",
+        "https://*.datadoghq.eu/*",
+        "https://*.datad0g.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "Support Admin Copilot"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

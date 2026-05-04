@@ -84,6 +84,11 @@ FORMATTING — The synthesized_answer MUST use markdown formatting for scannabil
 14. At the end of each strategic theme section, include a brief summary line:
     **Datadog Relevance:** Comma-separated list of the specific Datadog products relevant to that theme.
 
+When HOMERUN OPPORTUNITY CONTEXT is present (deal state from the Homerun presales platform / Snowflake):
+15. Treat it as authoritative for opportunity stage, products in scope, SE notes, and recent activities; do not invent fields that are not listed there.
+16. Align your technical and value recommendations with the stated deal context (e.g. products in scope, environment, risks, next steps) when it does not conflict with the knowledge base responses.
+17. Stay assistive and read-only: never imply that changes were made in Homerun or other systems.
+
 Respond with a JSON object:
 {
   "synthesized_answer": "The unified response text, written conversationally as an SE would speak",
@@ -256,6 +261,13 @@ async def synthesize(ctx: PipelineContext) -> SynthesizedResponse:
             f"{ctx.hypothesis_context}"
         )
 
+    homerun_section = ""
+    if ctx.homerun_context:
+        homerun_section = (
+            "\n\nHOMERUN OPPORTUNITY CONTEXT (current presales / opportunity state):\n"
+            f"{ctx.homerun_context}"
+        )
+
     user_message = (
         f"ORIGINAL QUERY: {ctx.query}\n\n"
         f"{tech_section}\n\n"
@@ -264,6 +276,7 @@ async def synthesize(ctx: PipelineContext) -> SynthesizedResponse:
         f"{sec_filings_section}"
         f"{buyer_persona_section}"
         f"{hypothesis_section}"
+        f"{homerun_section}"
         f"{persona_instruction}\n\n"
         "Synthesize these into a unified response. Respond with ONLY a JSON object."
     )

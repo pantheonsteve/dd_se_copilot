@@ -12,6 +12,17 @@ window.companyDetailPage = (function () {
   var _chatLoaded = false;
   var _nextStepsLoading = false;
 
+  /** Homerun workspace SE Details fields (must match server / Snowflake mapping). */
+  var HR_TEMPLATE_FIELDS = [
+    { slug: "technical_plan", heading: "Technical Plan/Status" },
+    { slug: "current_status", heading: "Current Status" },
+    { slug: "se_leader_next", heading: "SE Leader Next Steps", readOnly: true },
+    { slug: "se_next", heading: "SE Next Steps", maxLength: 240 },
+    { slug: "env_tools", heading: "Current Environment/Tools" },
+    { slug: "risks", heading: "SE Outstanding Risks", maxLength: 255 },
+    { slug: "docs_link", heading: "Link to Opportunity Documents" },
+  ];
+
   // -----------------------------------------------------------------------
   // Entry point
   // -----------------------------------------------------------------------
@@ -105,8 +116,6 @@ window.companyDetailPage = (function () {
     var c = _data.company;
     var stats = _data.stats;
 
-    document.getElementById("cdCompanyName").textContent = c.name;
-
     var typeBadge = c.is_defined
       ? '<span class="cd-badge cd-badge-defined">Defined</span>'
       : '<span class="cd-badge cd-badge-discovered">Auto-discovered</span>';
@@ -147,6 +156,7 @@ window.companyDetailPage = (function () {
         '<div class="cd-col-right">' +
           renderOverviewCard(c, stats) +
           renderQuickActions() +
+          renderHomerunSection() +
           '<div id="cdNextStepsRegion">' + renderNextStepsBlock() + '</div>' +
           '<div class="cd-section cd-slack-section">' +
             '<div class="cd-section-header">' +
@@ -190,6 +200,7 @@ window.companyDetailPage = (function () {
       { key: "expansion_playbooks", label: "Expansion", cls: "tag-expansion" },
       { key: "precall_briefs", label: "Pre-Call", cls: "tag-precall" },
       { key: "release_digests", label: "Digests", cls: "tag-digest" },
+      { key: "homerun_opportunities", label: "Homerun", cls: "tag-homerun" },
     ];
     tagMap.forEach(function (t) {
       var count = stats.counts[t.key] || 0;
@@ -223,6 +234,11 @@ window.companyDetailPage = (function () {
     var c = _data.company;
     var tabs = [
       { id: 'snapshot', label: 'Deal Snapshot', alwaysShow: true },
+    ];
+    if (c.is_defined) {
+      tabs.push({ id: 'snowflake', label: 'Snowflake', alwaysShow: true });
+    }
+    tabs.push(
       { id: 'notes', label: 'Notes', count: (_data.notes_list || []).length, alwaysShow: true },
       { id: 'call_notes', label: 'Call Notes', count: (_data.call_notes || []).length, alwaysShow: true },
       { id: 'digests', label: 'Digests', count: (_data.release_digests || []).length, alwaysShow: true },
@@ -232,7 +248,7 @@ window.companyDetailPage = (function () {
       { id: 'precall', label: 'Pre-Call', count: (_data.precall_briefs || []).length },
       { id: 'next_steps', label: 'Next Steps', count: _data.next_steps ? 1 : 0 },
       { id: 'expansion', label: 'Expansion', count: (_data.expansion_playbooks || []).length },
-    ];
+    );
 
     var visibleTabs = tabs.filter(function (t) { return t.alwaysShow || t.count > 0; });
     if (!visibleTabs.length) return '';
@@ -247,6 +263,7 @@ window.companyDetailPage = (function () {
 
     var contentMap = {
       snapshot: '<div id="cdSnapshotBody"><div class="cd-loading-inline"><span class="spinner"></span> Loading deal snapshot\u2026</div></div>',
+      snowflake: renderSnowflakeTabContent(),
       notes: renderNotesTabContent(),
       hypotheses: renderHypothesesTabContent(),
       reports: renderReportsTabContent(),
@@ -290,6 +307,152 @@ window.companyDetailPage = (function () {
         allPanels[j].classList.remove('cd-tab-panel-active');
       }
     }
+  }
+
+  function applyHomerunHeadingValues(vals) {
+    if (!vals) return;
+    var slugByHeading = {};
+    for (var i = 0; i < HR_TEMPLATE_FIELDS.length; i++) {
+      slugByHeading[HR_TEMPLATE_FIELDS[i].heading] = HR_TEMPLATE_FIELDS[i].slug;
+    }
+    for (var heading in vals) {
+      if (!Object.prototype.hasOwnProperty.call(vals, heading)) continue;
+      var slug = slugByHeading[heading];
+      if (!slug) continue;
+      var ta = document.getElementById("cdHr_" + slug);
+      if (ta) ta.value = vals[heading];
+    }
+  }
+
+  function renderSnowflakeTabContent() {
+    var opps = _data.homerun_opportunities || [];
+    var homerunBlock;
+    if (!opps.length) {
+      homerunBlock =
+        '<div class="cd-homerun-template-empty">' +
+          '<p class="cd-empty">No Homerun opportunities linked. Use <strong>Homerun opportunities</strong> in the right column to search or paste a UUID.</p>' +
+        "</div>";
+    } else {
+      var sel = '<select id="cdHomerunTemplateOpp" class="input cd-homerun-opp-select">';
+      for (var i = 0; i < opps.length; i++) {
+        var o = opps[i];
+        var label = o.opportunity_name || o.opportunity_uuid;
+        sel +=
+          '<option value="' +
+          MD.escapeHtml(o.opportunity_uuid) +
+          '">' +
+          MD.escapeHtml(label) +
+          "</option>";
+      }
+      sel += "</select>";
+
+      var fieldsHtml = "";
+      for (var j = 0; j < HR_TEMPLATE_FIELDS.length; j++) {
+        var f = HR_TEMPLATE_FIELDS[j];
+        var taClass = "input cd-homerun-field-textarea";
+        if (f.readOnly) taClass += " cd-homerun-field-readonly";
+        var roAttr = f.readOnly ? " readonly" : "";
+        var maxAttr = f.maxLength ? ' maxlength="' + f.maxLength + '"' : "";
+        var placeholder = f.readOnly
+          ? "Loaded from Homerun (Snowflake snapshot) — not generated here"
+          : f.maxLength
+            ? "Max " + f.maxLength + " characters — load from Snowflake or generate"
+            : "Load from Snowflake or generate";
+        fieldsHtml +=
+          '<div class="cd-homerun-field-row">' +
+            '<label class="cd-homerun-field-label" for="cdHr_' +
+          f.slug +
+          '">' +
+          MD.escapeHtml(f.heading) +
+          "</label>" +
+            '<textarea class="' +
+          taClass +
+          '" id="cdHr_' +
+          f.slug +
+          '" rows="' +
+          (f.maxLength ? "3" : "4") +
+          '" placeholder="' +
+          MD.escapeHtml(placeholder) +
+          '"' +
+          roAttr +
+          maxAttr +
+          "></textarea>" +
+          "</div>";
+      }
+
+      homerunBlock =
+        '<div class="cd-homerun-template">' +
+          '<p class="cd-homerun-template-intro">Pick the <strong>correct</strong> linked opportunity (same account may have several deals). Load from Snowflake first so Generate sees the official opportunity name and fields. Drafts are written in your voice as the SE—keep instructions specific to this deal. SE Leader Next Steps is read-only here. SE Next Steps max 240 characters; SE Outstanding Risks max 255.</p>' +
+          '<div class="cd-homerun-template-toolbar">' +
+            '<label class="cd-homerun-opp-label" for="cdHomerunTemplateOpp">Opportunity</label>' +
+            sel +
+            '<button type="button" class="btn btn-sm btn-outline" onclick="companyDetailPage.loadHomerunTemplateFromSnowflake()">Load from Snowflake</button>' +
+          "</div>" +
+          '<div class="cd-homerun-template-fields">' +
+          fieldsHtml +
+          "</div>" +
+          '<div class="cd-homerun-template-prompt">' +
+            '<label class="cd-homerun-field-label" for="cdHomerunTemplatePrompt">Your instructions</label>' +
+            '<textarea id="cdHomerunTemplatePrompt" class="input" rows="3" placeholder="e.g. Emphasize BitsAI PoC scope only; mention renewal discussion only if relevant to this opp"></textarea>' +
+          "</div>" +
+          '<div class="cd-homerun-template-actions">' +
+            '<button type="button" class="btn btn-sm btn-primary" id="cdHomerunGenBtn" onclick="companyDetailPage.generateHomerunTemplateFields()">Generate</button>' +
+            '<span id="cdHomerunGenErr" class="cd-error-inline" style="display:none;"></span>' +
+          "</div>" +
+        "</div>";
+    }
+
+    var sfSection;
+    if (!opps.length) {
+      sfSection =
+        '<section class="cd-snowflake-sf-section">' +
+          '<h3 class="cd-snowflake-subheading">Salesforce (Snowflake)</h3>' +
+          '<p class="cd-empty">Link a Homerun opportunity to load Salesforce data tied to its Salesforce Opportunity Id (configure <code>snowflake_salesforce_context_sql</code> on the server).</p>' +
+        "</section>";
+    } else {
+      sfSection =
+        '<section class="cd-snowflake-sf-section">' +
+          '<h3 class="cd-snowflake-subheading">Salesforce (Snowflake)</h3>' +
+          '<p class="cd-homerun-template-intro">Uses the same opportunity selection as Homerun. Runs your configured read-only SQL with <code>{SALESFORCE_OPPORTUNITY_ID}</code> from the Homerun DIM row. Load results first; then optionally summarize with AI.</p>' +
+          '<div class="cd-snowflake-sf-toolbar">' +
+            '<button type="button" class="btn btn-sm btn-outline" onclick="companyDetailPage.loadSalesforceSnowflakeContext()">Load Salesforce context</button>' +
+            '<button type="button" class="btn btn-sm btn-primary" id="cdSfSummarizeBtn" onclick="companyDetailPage.summarizeSalesforceSnowflakeContext()" disabled>Summarize with AI</button>' +
+            '<span id="cdSfErr" class="cd-error-inline" style="display:none;"></span>' +
+          "</div>" +
+          '<div id="cdSfTableWrap" class="cd-sf-table-wrap"></div>' +
+          '<div id="cdSfSummary" class="cd-sf-summary md-body"></div>' +
+        "</section>";
+    }
+
+    return '<div class="cd-snowflake-tab">' + '<h3 class="cd-snowflake-subheading">Homerun</h3>' + homerunBlock + sfSection + "</div>";
+  }
+
+  function renderSfDataTable(columns, rows) {
+    if (!columns || !columns.length) {
+      return '<p class="cd-empty">No columns in result.</p>';
+    }
+    var th = columns
+      .map(function (c) {
+        return "<th>" + MD.escapeHtml(String(c)) + "</th>";
+      })
+      .join("");
+    var trs = (rows || []).map(function (r) {
+      var tds = columns
+        .map(function (c) {
+          var v = r[c];
+          var s = v === null || v === undefined ? "" : String(v);
+          return "<td>" + MD.escapeHtml(s) + "</td>";
+        })
+        .join("");
+      return "<tr>" + tds + "</tr>";
+    });
+    return (
+      '<table class="cd-sf-data-table"><thead><tr>' +
+      th +
+      "</tr></thead><tbody>" +
+      trs.join("") +
+      "</tbody></table>"
+    );
   }
 
   // -- Tab content renderers ------------------------------------------------
@@ -706,6 +869,49 @@ window.companyDetailPage = (function () {
   // -----------------------------------------------------------------------
   // Quick Actions (right column)
   // -----------------------------------------------------------------------
+
+  function renderHomerunSection() {
+    var c = _data.company;
+    if (!c.is_defined) return "";
+    var items = _data.homerun_opportunities || [];
+    var homerunBase = "https://datadog.cloud.homerunpresales.com/#/evaluation/";
+    var rows = items.map(function (h) {
+      var name = h.opportunity_name || h.opportunity_uuid;
+      var ws = homerunBase + encodeURIComponent(h.opportunity_uuid) + "/workspace";
+      return (
+        '<div class="cd-artifact-row">' +
+          '<div class="cd-artifact-row-header">' +
+            '<span class="artifact-row-icon" style="background:#e0e7ff;color:#4338ca;">&#x26BD;</span>' +
+            '<span class="cd-artifact-row-title">' + MD.escapeHtml(name) + "</span>" +
+            '<a href="' + ws + '" target="_blank" rel="noopener" class="btn btn-sm btn-outline">Workspace</a>' +
+            '<button type="button" class="btn btn-sm btn-outline cd-btn-danger" onclick=\'event.stopPropagation();companyDetailPage.unlinkHomerun(' +
+            JSON.stringify(h.opportunity_uuid) +
+            ')\'>Unlink</button>' +
+          "</div>" +
+          (h.homerun_stage ? '<p class="cd-artifact-preview">' + MD.escapeHtml(h.homerun_stage) + "</p>" : "") +
+        "</div>"
+      );
+    }).join("");
+    return (
+      '<div class="cd-section" id="cdHomerunSection">' +
+        '<div class="cd-section-header"><h2>Homerun opportunities</h2></div>' +
+        '<div class="cd-section-body">' +
+          '<p style="font-size:.8rem;color:var(--text-muted);margin:0 0 .75rem 0;">Link multiple deals per company. Search by opportunity name (Snowflake) or paste an <code>OPPORTUNITY_UUID</code>.</p>' +
+          '<div style="margin-bottom:.75rem;">' +
+            '<input type="text" id="cdHomerunSearch" class="input" placeholder="Search opportunity name\u2026" style="margin-bottom:.4rem;width:100%;" ' +
+            'onkeydown="if(event.key===\'Enter\')companyDetailPage.runHomerunSearch()">' +
+            '<button type="button" class="btn btn-sm btn-primary" onclick="companyDetailPage.runHomerunSearch()">Search</button>' +
+            '<div id="cdHomerunResults" style="margin-top:.5rem;"></div>' +
+            '<div style="margin-top:.75rem;display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;">' +
+            '<input type="text" id="cdHomerunUuid" class="input" placeholder="Or paste OPPORTUNITY_UUID" style="flex:1;min-width:180px;">' +
+            '<button type="button" class="btn btn-sm btn-outline" onclick="companyDetailPage.linkHomerunUuid()">Link UUID</button>' +
+            "</div>" +
+          "</div>" +
+          (rows || '<div class="cd-empty">No Homerun opportunities linked.</div>') +
+        "</div>" +
+      "</div>"
+    );
+  }
 
   function renderQuickActions() {
     var missing = [];
@@ -1986,6 +2192,199 @@ window.companyDetailPage = (function () {
 
     toggleSlackForm: toggleSlackForm,
     saveSlackSummary: saveSlackSummary,
+
+    runHomerunSearch: async function () {
+      var inp = document.getElementById("cdHomerunSearch");
+      var mount = document.getElementById("cdHomerunResults");
+      if (!inp || !mount || !_data.company.id) return;
+      var q = inp.value.trim();
+      mount.innerHTML = '<span class="spinner"></span>';
+      try {
+        var data = await API.searchHomerunOpportunities(q);
+        var opps = data.opportunities || [];
+        if (!data.snowflake_enabled) {
+          mount.innerHTML = '<div class="cd-empty">Snowflake is disabled in config — search unavailable.</div>';
+          return;
+        }
+        if (!opps.length) {
+          mount.innerHTML = '<div class="cd-empty">No matches.</div>';
+          return;
+        }
+        mount.innerHTML = opps.map(function (o) {
+          var id = o.OPPORTUNITY_UUID || "";
+          var nm = o.OPPORTUNITY_NAME || id;
+          return (
+            '<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.35rem 0;border-bottom:1px solid var(--border,#e5e7eb);">' +
+              "<span>" + MD.escapeHtml(nm) + "</span>" +
+              '<button type="button" class="btn btn-sm btn-primary" onclick=\'companyDetailPage.linkHomerunFromSearch(' +
+              JSON.stringify(id) +
+              ')\'>Link</button>' +
+            "</div>"
+          );
+        }).join("");
+      } catch (e) {
+        mount.innerHTML = '<div class="cd-empty">' + MD.escapeHtml(e.message) + "</div>";
+      }
+    },
+
+    linkHomerunFromSearch: async function (uuid) {
+      if (!uuid || !_data.company.id) return;
+      try {
+        await API.linkResource(_data.company.id, "homerun_opportunity", uuid);
+        await load();
+      } catch (e) {
+        alert("Failed to link: " + e.message);
+      }
+    },
+
+    linkHomerunUuid: async function () {
+      var inp = document.getElementById("cdHomerunUuid");
+      if (!inp || !_data.company.id) return;
+      var u = inp.value.trim();
+      if (!u) {
+        alert("Paste an opportunity UUID.");
+        return;
+      }
+      await companyDetailPage.linkHomerunFromSearch(u);
+      inp.value = "";
+    },
+
+    unlinkHomerun: async function (uuid) {
+      if (!_data.company.id || !uuid) return;
+      if (!confirm("Unlink this Homerun opportunity from the company?")) return;
+      try {
+        await API.unlinkResource(_data.company.id, "homerun_opportunity", uuid);
+        await load();
+      } catch (e) {
+        alert("Failed to unlink: " + e.message);
+      }
+    },
+
+    loadHomerunTemplateFromSnowflake: async function () {
+      var sel = document.getElementById("cdHomerunTemplateOpp");
+      var err = document.getElementById("cdHomerunGenErr");
+      if (!sel || !sel.value) return;
+      if (err) {
+        err.style.display = "none";
+        err.textContent = "";
+        err.classList.remove("cd-homerun-info");
+      }
+      try {
+        var data = await API.homerunFillPreview(sel.value);
+        if (data.found_in_snowflake === false) {
+          if (err) {
+            err.textContent =
+              data.message ||
+              "Could not load from Snowflake (see server message). You can still use Generate.";
+            err.classList.add("cd-homerun-info");
+            err.style.display = "";
+          }
+          return;
+        }
+        applyHomerunHeadingValues(data.values_by_heading);
+      } catch (e) {
+        if (err) {
+          err.textContent = e.message || String(e);
+          err.style.display = "";
+        } else {
+          alert(e.message);
+        }
+      }
+    },
+
+    generateHomerunTemplateFields: async function () {
+      var sel = document.getElementById("cdHomerunTemplateOpp");
+      var pr = document.getElementById("cdHomerunTemplatePrompt");
+      var btn = document.getElementById("cdHomerunGenBtn");
+      var err = document.getElementById("cdHomerunGenErr");
+      if (!sel || !sel.value || !_key) return;
+      if (err) {
+        err.style.display = "none";
+        err.textContent = "";
+      }
+      if (btn) btn.disabled = true;
+      try {
+        var data = await API.generateHomerunFieldDraft(_key, sel.value, pr ? pr.value : "");
+        applyHomerunHeadingValues(data.values_by_heading);
+      } catch (e) {
+        if (err) {
+          err.textContent = e.message || String(e);
+          err.style.display = "";
+        } else {
+          alert(e.message);
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    },
+
+    loadSalesforceSnowflakeContext: async function () {
+      var sel = document.getElementById("cdHomerunTemplateOpp");
+      var wrap = document.getElementById("cdSfTableWrap");
+      var sumEl = document.getElementById("cdSfSummary");
+      var err = document.getElementById("cdSfErr");
+      var sumBtn = document.getElementById("cdSfSummarizeBtn");
+      if (!sel || !sel.value || !_key) return;
+      if (err) {
+        err.style.display = "none";
+        err.textContent = "";
+      }
+      if (sumEl) sumEl.innerHTML = "";
+      if (wrap) wrap.innerHTML = '<span class="spinner"></span>';
+      if (sumBtn) sumBtn.disabled = true;
+      try {
+        var data = await API.getSalesforceSnowflakeContext(_key, sel.value);
+        if (!wrap) return;
+        if (data.rows && data.rows.length) {
+          wrap.innerHTML = renderSfDataTable(data.columns || [], data.rows);
+          if (sumBtn) sumBtn.disabled = false;
+        } else {
+          wrap.innerHTML =
+            '<p class="cd-empty">' +
+            MD.escapeHtml(data.message || "No rows returned.") +
+            "</p>";
+        }
+      } catch (e) {
+        if (wrap) wrap.innerHTML = "";
+        if (err) {
+          err.textContent = e.message || String(e);
+          err.style.display = "";
+        } else {
+          alert(e.message);
+        }
+      }
+    },
+
+    summarizeSalesforceSnowflakeContext: async function () {
+      var sel = document.getElementById("cdHomerunTemplateOpp");
+      var sumEl = document.getElementById("cdSfSummary");
+      var err = document.getElementById("cdSfErr");
+      var sumBtn = document.getElementById("cdSfSummarizeBtn");
+      if (!sel || !sel.value || !_key) return;
+      if (err) {
+        err.style.display = "none";
+        err.textContent = "";
+      }
+      if (sumBtn) sumBtn.disabled = true;
+      if (sumEl) sumEl.innerHTML = '<span class="spinner"></span>';
+      try {
+        var data = await API.summarizeSalesforceSnowflakeContext(_key, sel.value);
+        var md = data.markdown || "";
+        if (sumEl) {
+          sumEl.innerHTML = window.marked ? marked.parse(md) : "<p>" + MD.escapeHtml(md) + "</p>";
+        }
+      } catch (e) {
+        if (sumEl) sumEl.innerHTML = "";
+        if (err) {
+          err.textContent = e.message || String(e);
+          err.style.display = "";
+        } else {
+          alert(e.message);
+        }
+      } finally {
+        if (sumBtn) sumBtn.disabled = false;
+      }
+    },
 
     sendChat: async function () {
       if (_chatState.sending) return;

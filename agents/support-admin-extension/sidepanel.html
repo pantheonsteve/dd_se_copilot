@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Support Admin Copilot</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="header-row">
+        <h1>Support Admin Copilot</h1>
+        <button type="button" id="btnNewChat" class="secondary btn-compact">New chat</button>
+      </div>
+      <div id="status" class="status">Checking SE Copilot…</div>
+      <div class="api-row">
+        <label for="apiRoot">SE Copilot base URL</label>
+        <input type="text" id="apiRoot" spellcheck="false" placeholder="http://localhost:5070" />
+      </div>
+      <p id="tabInfo" class="meta"></p>
+
+      <div class="tools-row">
+        <button type="button" id="btnViewport" class="secondary">Capture viewport</button>
+        <button type="button" id="btnFullPage">Capture full page</button>
+        <label class="toggle-label">
+          <input type="checkbox" id="includeScreenshot" />
+          Include last screenshot in reply
+        </label>
+        <button type="button" id="btnContext" class="secondary">Fetch context</button>
+      </div>
+      <p class="meta tools-hint">Capture is optional. Chat uses live page context; enable the checkbox to attach your last capture.</p>
+
+      <div class="account-row">
+        <label for="accountName">Account name (optional, for context / report)</label>
+        <input type="text" id="accountName" placeholder="Customer or account name" autocomplete="off" />
+      </div>
+    </header>
+
+    <main class="chat-main">
+      <div id="chatLog" class="chat-log" aria-live="polite"></div>
+
+      <div class="composer">
+        <textarea id="chatInput" rows="3" placeholder="Ask about this page… (Enter to send, Shift+Enter for newline)"></textarea>
+        <div class="composer-actions">
+          <button type="button" id="btnSend">Send</button>
+        </div>
+      </div>
+    </main>
+
+    <footer class="app-footer">
+      <div id="captureBadge" class="capture-badge hidden">Screenshot ready</div>
+      <div id="preview" class="preview-thumb hidden" aria-label="Last capture preview"></div>
+
+      <div class="report-block">
+        <div class="report-actions">
+          <button type="button" id="btnReport" class="secondary">Generate report</button>
+          <button type="button" id="btnDownloadPdf" class="secondary" disabled>Download PDF</button>
+        </div>
+        <div id="reportSection" class="hidden report-section">
+          <h2 class="meta">Report</h2>
+          <div id="reportRendered" class="report-md output report-out"></div>
+        </div>
+      </div>
+    </footer>
+  </div>
+  <script src="purify.min.js"></script>
+  <script src="marked.min.js"></script>
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>

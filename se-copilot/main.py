@@ -6,11 +6,12 @@ import logging
 import os
 import time
 from pathlib import Path
+from typing import Any
 
 import httpx
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -137,6 +138,19 @@ from librarian_product_query import (
     query_librarian_product_list,
     query_librarian_product_validation,
 )
+from support_admin_extension import router as sac_router
+from homerun_browser_automation import automation_runbook_markdown, dim_row_to_fill_strings
+from homerun_field_synth import generate_homerun_field_values
+from sf_context_synth import summarize_salesforce_context_markdown
+from snowflake_salesforce_context import fetch_salesforce_context_rows, rows_payload_json
+from homerun_snowflake import (
+    HomerunIdMismatchError,
+    fetch_homerun_dim_dict,
+    fetch_homerun_dim_for_fill_preview,
+    load_homerun_context,
+    lookup_homerun_opportunity_summaries,
+    search_homerun_opportunities,
+)
 
 from company_store import (
     create_company as create_company_record,
@@ -186,6 +200,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(sac_router)
 
 
 async def _timed(coro):
@@ -275,6 +291,21 @@ async def handle_query(req: QueryRequest) -> QueryResponse:
     start = time.perf_counter()
 
     ctx = PipelineContext(query=req.query, persona=req.persona)
+    # Homerun: optional manual text; may be replaced by a successful Snowflake load.
+    ctx.homerun_context = (req.homerun_context or "").strip() or None
+    homerun_uid = (req.homerun_opportunity_uuid or "").strip() or None
+    homerun_sf = (req.homerun_salesforce_opportunity_id or "").strip() or None
+    if settings.snowflake_enabled and (homerun_uid or homerun_sf):
+        t0 = time.perf_counter()
+        try:
+            loaded = await load_homerun_context(homerun_uid, homerun_sf)
+        except HomerunIdMismatchError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        ctx.stage_timings_ms["homerun_snowflake"] = int(
+            (time.perf_counter() - t0) * 1000
+        )
+        if loaded:
+            ctx.homerun_context = loaded
 
     ctx.route, route_ms = await _timed(classify_query(req.query, req.persona))
     ctx.stage_timings_ms["router"] = route_ms
@@ -1442,6 +1473,328 @@ async def api_unlink_resource(company_id: str, resource_type: str, resource_id: 
     return {"ok": True}
 
 
+@task(name="homerun_search")
+@app.get("/api/homerun/opportunities/search")
+async def api_homerun_opportunity_search(query: str = "", limit: int = 25):
+    """Search DIM_HOMERUN_OPPORTUNITY by OPPORTUNITY_NAME substring (Snowflake)."""
+    lim = max(1, min(limit, 100))
+    rows = await search_homerun_opportunities(query, lim)
+    return {"opportunities": rows, "snowflake_enabled": settings.snowflake_enabled}
+
+
+class _HomerunFieldDraftRequest(_BaseModel):
+    opportunity_uuid: str
+    prompt: str = ""
+
+
+class _SfOpportunityUuidBody(_BaseModel):
+    opportunity_uuid: str
+
+
+def _homerun_field_company_and_linked_uid(
+    key: str, opportunity_uuid: str
+) -> tuple[dict[str, Any], str]:
+    """Validate company + linked Homerun opportunity; return (company_meta, uid)."""
+    company_meta = _resolve_company_meta_for_detail_key(key)
+    if not company_meta:
+        raise HTTPException(status_code=404, detail="Company not found")
+    if not company_meta.get("is_defined") or not company_meta.get("id"):
+        raise HTTPException(
+            status_code=403,
+            detail="Homerun field draft is only available for defined companies",
+        )
+    uid = (opportunity_uuid or "").strip()
+    if not uid:
+        raise HTTPException(status_code=400, detail="opportunity_uuid is required")
+    linked = False
+    for lr in list_company_resources(company_meta["id"]):
+        if lr["resource_type"] == "homerun_opportunity" and lr["resource_id"].strip() == uid:
+            linked = True
+            break
+    if not linked:
+        raise HTTPException(
+            status_code=403,
+            detail="Link this Homerun opportunity to the company first",
+        )
+    return company_meta, uid
+
+
+def _resolve_company_meta_for_detail_key(key: str) -> dict | None:
+    """Same resolution as company profile: defined company by id/name, else discovered from artifacts."""
+    key_lower = key.lower()
+    for dc in list_defined_companies():
+        if dc["id"] == key or _normalize_company_name(dc["name"]).lower() == key_lower:
+            return {
+                "id": dc["id"],
+                "name": dc["name"],
+                "domain": dc["domain"],
+                "notes": dc["notes"],
+                "is_defined": True,
+                "created_at": dc["created_at"],
+            }
+    for hyp in list_hypotheses():
+        if _normalize_company_name(hyp.company_name).lower() == key_lower:
+            return {"name": hyp.company_name, "key": key_lower, "is_defined": False}
+    for plan in list_demo_plans():
+        if _normalize_company_name(plan.company_name).lower() == key_lower:
+            return {"name": plan.company_name, "key": key_lower, "is_defined": False}
+    for exp in list_expansion_playbooks():
+        if _normalize_company_name(exp.company_name).lower() == key_lower:
+            return {"name": exp.company_name, "key": key_lower, "is_defined": False}
+    for pb in list_precall_briefs():
+        if _normalize_company_name(pb["company_name"]).lower() == key_lower:
+            return {"name": pb["company_name"], "key": key_lower, "is_defined": False}
+    return None
+
+
+@task(name="homerun_field_draft")
+@app.post("/api/companies/{key}/homerun-field-draft")
+async def api_homerun_field_draft(key: str, body: _HomerunFieldDraftRequest):
+    """Generate Homerun workspace field text from company artifacts + Snowflake DIM + user prompt."""
+    company_meta, uid = _homerun_field_company_and_linked_uid(key, body.opportunity_uuid)
+
+    try:
+        dim = await fetch_homerun_dim_dict(uid, None)
+    except HomerunIdMismatchError:
+        dim = None
+
+    linked_uuids: list[str] = []
+    for lr in list_company_resources(company_meta["id"]):
+        if lr["resource_type"] == "homerun_opportunity":
+            u = (lr["resource_id"] or "").strip()
+            if u:
+                linked_uuids.append(u)
+
+    other_linked: list[dict[str, Any]] = []
+    if linked_uuids:
+        summaries = await lookup_homerun_opportunity_summaries(linked_uuids)
+        for ou in linked_uuids:
+            if ou == uid:
+                continue
+            row = summaries.get(ou) or {}
+            other_linked.append(
+                {
+                    "opportunity_uuid": ou,
+                    "opportunity_name": str(row.get("OPPORTUNITY_NAME") or ""),
+                    "homerun_stage": str(row.get("HOMERUN_STAGE") or ""),
+                }
+            )
+
+    artifacts = _gather_company_artifacts(company_meta["name"])
+    values = await generate_homerun_field_values(
+        body.prompt,
+        company_meta["name"],
+        company_meta.get("domain") or "",
+        company_meta.get("notes") or "",
+        artifacts,
+        dim,
+        other_linked_opportunities=other_linked,
+    )
+    return {"opportunity_uuid": uid, "values_by_heading": values}
+
+
+@task(name="salesforce_context")
+@app.get("/api/companies/{key}/snowflake/salesforce-context")
+async def api_salesforce_context(
+    key: str, opportunity_uuid: str = Query(..., min_length=1)
+):
+    """Load configured Salesforce (Snowflake) rows for the linked opportunity's SF id."""
+    _, uid = _homerun_field_company_and_linked_uid(key, opportunity_uuid)
+    try:
+        dim = await fetch_homerun_dim_dict(uid, None)
+    except HomerunIdMismatchError:
+        dim = None
+    sf_raw = str(dim.get("SALESFORCE_OPPORTUNITY_ID") or "") if dim else ""
+    op_name = str(dim.get("OPPORTUNITY_NAME") or "") if dim else ""
+    to = float(
+        settings.snowflake_mcp_timeout_seconds
+        if settings.snowflake_transport == "mcp"
+        else settings.snowflake_query_timeout_seconds
+    )
+    try:
+        payload = await asyncio.wait_for(
+            fetch_salesforce_context_rows(sf_raw),
+            timeout=to,
+        )
+    except TimeoutError:
+        raise HTTPException(
+            status_code=504, detail="Snowflake query timed out. Retry or increase timeout in config."
+        ) from None
+    return {
+        **payload,
+        "opportunity_uuid": uid,
+        "opportunity_name": op_name or None,
+    }
+
+
+@task(name="salesforce_summary")
+@app.post("/api/companies/{key}/snowflake/salesforce-summary")
+async def api_salesforce_summary(key: str, body: _SfOpportunityUuidBody):
+    """Claude markdown summary of Salesforce context rows (re-queries Snowflake)."""
+    company_meta, uid = _homerun_field_company_and_linked_uid(key, body.opportunity_uuid)
+    try:
+        dim = await fetch_homerun_dim_dict(uid, None)
+    except HomerunIdMismatchError:
+        dim = None
+    sf_raw = str(dim.get("SALESFORCE_OPPORTUNITY_ID") or "") if dim else ""
+    op_name = str(dim.get("OPPORTUNITY_NAME") or "") if dim else None
+    to = float(
+        settings.snowflake_mcp_timeout_seconds
+        if settings.snowflake_transport == "mcp"
+        else settings.snowflake_query_timeout_seconds
+    )
+    try:
+        payload = await asyncio.wait_for(
+            fetch_salesforce_context_rows(sf_raw),
+            timeout=to,
+        )
+    except TimeoutError:
+        raise HTTPException(
+            status_code=504, detail="Snowflake query timed out. Retry or increase timeout in config."
+        ) from None
+    cols = list(payload.get("columns") or [])
+    rows = list(payload.get("rows") or [])
+    if not rows:
+        msg = payload.get("message") or "No Salesforce rows to summarize."
+        raise HTTPException(status_code=400, detail=msg)
+    sf_id = payload.get("salesforce_opportunity_id") or sf_raw
+    if not sf_id:
+        raise HTTPException(
+            status_code=400,
+            detail="No Salesforce Opportunity Id on this Homerun row.",
+        )
+    pj = rows_payload_json(cols, rows)
+    try:
+        md = await summarize_salesforce_context_markdown(
+            company_meta["name"],
+            op_name,
+            str(sf_id),
+            pj,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return {
+        "markdown": md,
+        "opportunity_uuid": uid,
+        "salesforce_opportunity_id": str(sf_id),
+    }
+
+
+def _sanitize_homerun_ui_detail(text: str, max_len: int = 450) -> str:
+    """Single-line, length-capped detail safe to show in the browser (no stack paths emphasis)."""
+    if not text:
+        return ""
+    one = " ".join(text.replace("\r", " ").split())
+    if len(one) > max_len:
+        return one[: max_len - 3] + "..."
+    return one
+
+
+def _homerun_fill_preview_message(outcome: str) -> tuple[str, str]:
+    """Map internal outcome code to (reason, user-visible message)."""
+    if outcome == "snowflake_disabled":
+        return (
+            "snowflake_disabled",
+            "Snowflake load is disabled (snowflake_enabled=false). "
+            "Set snowflake_enabled=true, then either connector credentials or SNOWFLAKE_TRANSPORT=mcp "
+            "with snowflake_mcp_command / snowflake_mcp_args_json (mirror your Cursor Snowflake MCP). "
+            "You can still use Generate.",
+        )
+    if outcome.startswith("misconfigured|"):
+        hint = outcome.split("|", 1)[1]
+        return (
+            "misconfigured",
+            f"Snowflake is enabled but not ready: {hint} You can still use Generate.",
+        )
+    if outcome == "connection_failed":
+        return (
+            "connection_failed",
+            "Could not open a Snowflake session (check server logs: role, warehouse, password or private key). "
+            "You can still use Generate.",
+        )
+    if outcome.startswith("connect_error|"):
+        detail = _sanitize_homerun_ui_detail(outcome.split("|", 1)[1] if "|" in outcome else "")
+        tail = f" Detail: {detail}" if detail else ""
+        return (
+            "connect_error",
+            f"Snowflake connector or MCP subprocess failed.{tail} Full trace in server logs. "
+            "You can still use Generate.",
+        )
+    if outcome == "not_found":
+        return (
+            "not_found",
+            "Connected to Snowflake, but no DIM row for this UUID (ETL lag, new deal, or UUID mismatch "
+            "with OPPORTUNITY_UUID). You can still use Generate.",
+        )
+    if outcome.startswith("query_error|"):
+        detail = _sanitize_homerun_ui_detail(outcome.split("|", 1)[1] if "|" in outcome else "")
+        tail = f" Detail: {detail}" if detail else ""
+        hint = ""
+        if settings.snowflake_transport == "mcp":
+            hint = (
+                " For MCP: verify snowflake_mcp_command/args, tools, and snowflake_mcp_statement_argument. "
+                "Browser SSO only works interactively (e.g. in Cursor); se-copilot needs key pair/password "
+                "or cached CLI credentials (snowflake_client_store_temporary_credential). "
+            )
+        return (
+            "query_error",
+            f"Snowflake query failed.{tail}{hint}Full trace in server logs. You can still use Generate.",
+        )
+    if outcome == "timeout":
+        secs = (
+            settings.snowflake_mcp_timeout_seconds
+            if settings.snowflake_transport == "mcp"
+            else settings.snowflake_query_timeout_seconds
+        )
+        setting_name = (
+            "snowflake_mcp_timeout_seconds"
+            if settings.snowflake_transport == "mcp"
+            else "snowflake_query_timeout_seconds"
+        )
+        return (
+            "timeout",
+            f"Snowflake did not respond within {secs}s. Retry or increase {setting_name}. "
+            "You can still use Generate.",
+        )
+    if outcome == "empty_uuid":
+        return "empty_uuid", "Missing opportunity UUID."
+    return (
+        "unknown",
+        "Could not load this opportunity from Snowflake. You can still use Generate.",
+    )
+
+
+@task(name="homerun_fill_preview")
+@app.get("/api/homerun/opportunities/{opportunity_uuid}/fill-preview")
+async def api_homerun_fill_preview(opportunity_uuid: str):
+    """Snowflake DIM → workspace textarea headings + MCP runbook text for Chrome DevTools."""
+    uid = opportunity_uuid.strip()
+    if not uid:
+        raise HTTPException(status_code=400, detail="opportunity_uuid required")
+    try:
+        row, outcome = await fetch_homerun_dim_for_fill_preview(uid)
+    except HomerunIdMismatchError:  # defensive; uuid+sf mismatch path
+        row, outcome = None, "not_found"
+    if outcome != "ok":
+        reason, message = _homerun_fill_preview_message(outcome)
+        return {
+            "opportunity_uuid": uid,
+            "values_by_heading": {},
+            "runbook_markdown": "",
+            "found_in_snowflake": False,
+            "reason": reason,
+            "message": message,
+        }
+    vals = dim_row_to_fill_strings(row)
+    rb = automation_runbook_markdown(uid, vals)
+    return {
+        "opportunity_uuid": uid,
+        "values_by_heading": vals,
+        "runbook_markdown": rb,
+        "found_in_snowflake": True,
+    }
+
+
 class _NoteCreate(_BaseModel):
     title: str
     content: str
@@ -1508,7 +1861,8 @@ async def list_companies():
             "domain": dc["domain"], "notes": dc["notes"],
             "is_defined": True,
             "hypotheses": [], "reports": [], "demo_plans": [],
-            "expansion_playbooks": [], "call_notes": [], "precall_briefs": [], "latest_activity": dc["created_at"],
+            "expansion_playbooks": [], "call_notes": [], "precall_briefs": [],
+            "homerun_opportunities": [], "latest_activity": dc["created_at"],
         }
         for lr in list_company_resources(dc["id"]):
             rt, rid = lr["resource_type"], lr["resource_id"]
@@ -1570,6 +1924,11 @@ async def list_companies():
                     })
                     if pb.get("created_at", "") > entry["latest_activity"]:
                         entry["latest_activity"] = pb["created_at"]
+            elif rt == "homerun_opportunity":
+                entry["homerun_opportunities"].append({
+                    "opportunity_uuid": rid,
+                    "linked_at": lr.get("linked_at", ""),
+                })
         defined_results.append(entry)
 
     # --- 2. Build auto-discovered companies from artifacts not manually linked ---
@@ -1581,13 +1940,15 @@ async def list_companies():
             return dynamic.setdefault("unknown", {
                 "name": name, "key": "unknown", "is_defined": False,
                 "hypotheses": [], "reports": [], "demo_plans": [],
-                "expansion_playbooks": [], "call_notes": [], "precall_briefs": [], "latest_activity": "",
+                "expansion_playbooks": [], "call_notes": [], "precall_briefs": [],
+                "homerun_opportunities": [], "latest_activity": "",
             })
         if key not in dynamic:
             dynamic[key] = {
                 "name": name, "key": key, "is_defined": False,
                 "hypotheses": [], "reports": [], "demo_plans": [],
-                "expansion_playbooks": [], "call_notes": [], "precall_briefs": [], "latest_activity": "",
+                "expansion_playbooks": [], "call_notes": [], "precall_briefs": [],
+                "homerun_opportunities": [], "latest_activity": "",
             }
         return dynamic[key]
 
@@ -1668,40 +2029,7 @@ async def list_companies():
 @app.get("/api/companies/{key}/profile")
 async def company_profile(key: str):
     """Return comprehensive data for a single company landing page."""
-    key_lower = key.lower()
-
-    # Try to find defined company first (by id or normalized name)
-    company_meta = None
-    for dc in list_defined_companies():
-        if dc["id"] == key or _normalize_company_name(dc["name"]).lower() == key_lower:
-            company_meta = {
-                "id": dc["id"], "name": dc["name"], "domain": dc["domain"],
-                "notes": dc["notes"], "is_defined": True, "created_at": dc["created_at"],
-            }
-            break
-
-    if not company_meta:
-        # Auto-discovered: derive name from artifacts
-        for hyp in list_hypotheses():
-            if _normalize_company_name(hyp.company_name).lower() == key_lower:
-                company_meta = {"name": hyp.company_name, "key": key_lower, "is_defined": False}
-                break
-        if not company_meta:
-            for plan in list_demo_plans():
-                if _normalize_company_name(plan.company_name).lower() == key_lower:
-                    company_meta = {"name": plan.company_name, "key": key_lower, "is_defined": False}
-                    break
-        if not company_meta:
-            for exp in list_expansion_playbooks():
-                if _normalize_company_name(exp.company_name).lower() == key_lower:
-                    company_meta = {"name": exp.company_name, "key": key_lower, "is_defined": False}
-                    break
-        if not company_meta:
-            for pb in list_precall_briefs():
-                if _normalize_company_name(pb["company_name"]).lower() == key_lower:
-                    company_meta = {"name": pb["company_name"], "key": key_lower, "is_defined": False}
-                    break
-
+    company_meta = _resolve_company_meta_for_detail_key(key)
     if not company_meta:
         raise HTTPException(status_code=404, detail="Company not found")
 
@@ -1795,7 +2123,6 @@ async def company_profile(key: str):
         "release_digests": len(digests_data),
     }
     completeness = sum(1 for k in ("hypotheses", "reports", "demo_plans") if counts[k] > 0)
-    total_artifacts = sum(counts.values())
 
     dates = []
     for h in hypotheses_data:
@@ -1809,14 +2136,37 @@ async def company_profile(key: str):
     for pb in precall_data:
         dates.append(pb["created_at"])
     notes_list = []
+    homerun_opportunities_data: list[dict] = []
     if company_meta.get("is_defined") and company_meta.get("id"):
         notes_list = list_company_notes(company_meta["id"])
         for n in notes_list:
             if n.get("created_at"):
                 dates.append(n["created_at"])
+        hr_uuids: list[str] = []
+        hr_links: list[dict] = []
+        for lr in list_company_resources(company_meta["id"]):
+            if lr["resource_type"] == "homerun_opportunity":
+                hr_uuids.append(lr["resource_id"])
+                hr_links.append(lr)
+        summaries = await lookup_homerun_opportunity_summaries(hr_uuids)
+        for lr in hr_links:
+            uid = lr["resource_id"]
+            s = summaries.get(uid, {})
+            homerun_opportunities_data.append(
+                {
+                    "opportunity_uuid": uid,
+                    "linked_at": lr.get("linked_at", ""),
+                    "opportunity_name": s.get("OPPORTUNITY_NAME"),
+                    "salesforce_opportunity_id": s.get("SALESFORCE_OPPORTUNITY_ID"),
+                    "homerun_stage": s.get("HOMERUN_STAGE"),
+                }
+            )
     latest_activity = max(dates) if dates else company_meta.get("created_at", "")
 
     cached_snapshot = get_latest_snapshot(company_name)
+
+    counts["homerun_opportunities"] = len(homerun_opportunities_data)
+    total_artifacts = sum(counts.values())
 
     return {
         "company": company_meta,
@@ -1830,6 +2180,7 @@ async def company_profile(key: str):
         "release_digests": digests_data,
         "next_steps": next_steps_data,
         "notes_list": notes_list,
+        "homerun_opportunities": homerun_opportunities_data,
         "cached_snapshot": cached_snapshot,
         "stats": {
             "counts": counts,

@@ -212,3 +212,31 @@ async def test_synthesize_fallback_on_bad_json():
 
     assert "Technical fallback." in result.synthesized_answer
     assert "parsing failed" in result.content_gaps[0].lower()
+
+
+@pytest.mark.asyncio
+async def test_synthesize_includes_homerun_context():
+    synth_output = json.dumps({
+        "synthesized_answer": "Answer with deal context.",
+        "technical_confidence": "HIGH",
+        "value_confidence": "HIGH",
+        "sources_used": {"technical": ["a.md"], "value": ["b.md"], "case_studies": []},
+        "content_gaps": [],
+        "discovery_questions": ["Q1?"],
+        "talk_track_version": "Short.",
+    })
+    tech = AgentResponse(answer="T", sources=["a.md", "b.md", "c.md"])
+    val = AgentResponse(answer="V", sources=["b.md"])
+    ctx = _make_ctx(technical=tech, value=val)
+    ctx.homerun_context = "### Test\n- **Homerun Stage:** Discovery"
+
+    with patch("synthesizer.anthropic.AsyncAnthropic") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.messages.create.return_value = _mock_claude_response(synth_output)
+        mock_cls.return_value = mock_client
+        await synthesize(ctx)
+        call_kwargs = mock_client.messages.create.call_args[1]
+        user_content = call_kwargs["messages"][0]["content"]
+
+    assert "HOMERUN OPPORTUNITY CONTEXT" in user_content
+    assert "Discovery" in user_content

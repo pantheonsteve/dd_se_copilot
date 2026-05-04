@@ -1,0 +1,112 @@
+{
+  "homerun_base_url": "https://datadog.cloud.homerunpresales.com",
+  "workspace_url_pattern": "/#/evaluation/{opportunity_uuid}/workspace",
+  "captured_at": "2026-04-30",
+  "capture_notes": "Workspace SE Details section uses Vuetify textareas; element ids (e.g. input-516) are unstable across sessions. Resolve targets at automation time via evaluate_script in homerun_browser_automation.py (heading-to-textarea walk). Chrome DevTools MCP: select_page, navigate_page, take_snapshot, fill_form (uids from latest snapshot), or evaluate_script to set values.",
+  "pipeline_surface": {
+    "description": "Presales Pipeline (/#/) — search and kanban only",
+    "fields": [
+      {
+        "ui_label": "Search Opportunities",
+        "control": "textbox",
+        "writable": true,
+        "snowflake_mapping": null
+      }
+    ]
+  },
+  "workspace_se_details_textareas": [
+    {
+      "ui_heading": "Technical Plan/Status",
+      "control": "textarea",
+      "writable": true,
+      "snowflake_column": "TECHNICAL_PLAN_STATUS"
+    },
+    {
+      "ui_heading": "Current Status",
+      "control": "textarea",
+      "writable": true,
+      "snowflake_column": "OPPORTUNITY_CURRENT_STATUS"
+    },
+    {
+      "ui_heading": "SE Leader Next Steps",
+      "control": "textarea",
+      "writable": true,
+      "snowflake_column": "SE_LEADER_NEXT_STEPS",
+      "notes": "SE Copilot Homerun tab: read-only from Snowflake snapshot; not drafted by Generate."
+    },
+    {
+      "ui_heading": "SE Next Steps",
+      "control": "textarea",
+      "writable": true,
+      "snowflake_column": "SE_NEXT_STEPS"
+    },
+    {
+      "ui_heading": "Current Environment/Tools",
+      "control": "textarea",
+      "writable": true,
+      "snowflake_column": "CURRENT_ENVIRONMENT_TOOLS"
+    },
+    {
+      "ui_heading": "SE Outstanding Risks",
+      "control": "textarea",
+      "writable": true,
+      "snowflake_column": "SE_OUTSTANDING_RISKS"
+    },
+    {
+      "ui_heading": "Link to Opportunity Documents",
+      "control": "textarea",
+      "writable": true,
+      "snowflake_column": "LINK_TO_OPPORTUNITY_DOCUMENTS"
+    }
+  ],
+  "other_workspace_controls": [
+    {
+      "ui_heading": "Activity Notes",
+      "placeholder": "Add notes about this activity...",
+      "control": "textarea",
+      "writable": true,
+      "snowflake_mapping": "FACT_HOMERUN_ACTIVITY / manual only — not a DIM column"
+    }
+  ],
+  "snowflake_dim_columns_without_confirmed_single_textarea": [
+    "OPPORTUNITY_NAME",
+    "OPPORTUNITY_UUID",
+    "HOMERUN_STAGE",
+    "OPPORTUNITY_SENTIMENT",
+    "EVALUATION_PLAN_PERCENT_COMPLETE",
+    "PRODUCTS_IN_SCOPE",
+    "EVALUATION_METHOD",
+    "IS_EVALUATION_STARTED",
+    "EVALUATION_STARTED_DATE",
+    "IS_EVALUATION_FINISHED",
+    "EVALUATION_FINISHED_DATE",
+    "SALESFORCE_OPPORTUNITY_ID",
+    "SALESFORCE_STAGE",
+    "TECHNICAL_LEAD",
+    "TECHNICAL_LEAD_EMAIL",
+    "SE_ENGAGEMENT_LEVEL",
+    "SE_ENGAGEMENT_QUALITY",
+    "SE_COMPETITION",
+    "TECHNICAL_WIN",
+    "TECHNICAL_CLOSE_STATUS",
+    "ADDITIONAL_APPLICATION_STACK_NOTES",
+    "APM_LANGUAGES",
+    "APPLICATION_FUNCTION_WHAT_DOES_IT_DO",
+    "CI_CD_TOOLING",
+    "CLOUD_ENVIRONMENT",
+    "CONFIG_MGMT",
+    "CONTAINER_ORCHESTRATOR",
+    "DATASTORE",
+    "HOW_ARE_APPLICATION_SLAS_SLOS_MEASURED",
+    "INCUMBENT_MONITORING",
+    "KEY_METRICS_FOR_SUCCESS",
+    "MESSAGE_BUS",
+    "NETWORK_DEVICES",
+    "NOTIFICATION_ENDPOINTS",
+    "SERVERLESS",
+    "WEB",
+    "WHO_WILL_BE_MAKING_THE_TECHNICAL_DECISIONS",
+    "EMITTED_AT"
+  ],
+  "account_level_columns_in_dim": "DIM_HOMERUN_OPPORTUNITY has no dedicated account_name column; match companies by searching OPPORTUNITY_NAME (and manual UUID/SF id), or join to Salesforce in a future model."
+}

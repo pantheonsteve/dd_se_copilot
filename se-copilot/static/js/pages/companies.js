@@ -131,12 +131,14 @@ window.companiesPage = (function () {
       var pct = Math.round((completeness / 3) * 100);
 
       var cnCount = (c.call_notes || []).length;
+      var hrCount = (c.homerun_opportunities || []).length;
 
       var tags =
         artifactTag("hypothesis", "Hypothesis", hypCount) +
         artifactTag("report", "Strategy", repCount) +
         artifactTag("demo", "Demo Plan", dpCount) +
-        artifactTag("call-note", "Call Notes", cnCount);
+        artifactTag("call-note", "Call Notes", cnCount) +
+        artifactTag("homerun", "Homerun", hrCount);
 
       var typeBadge = c.is_defined
         ? '<span class="company-type-badge defined">&#x1F4C1; Defined</span>'

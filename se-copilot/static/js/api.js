@@ -4,7 +4,17 @@
 const API = {
   async _fetch(url, opts = {}) {
     const resp = await fetch(url, opts);
-    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    if (!resp.ok) {
+      let detail = "HTTP " + resp.status;
+      try {
+        const body = await resp.json();
+        if (body && typeof body.detail === "string") detail = body.detail;
+        else if (body && Array.isArray(body.detail)) detail = body.detail.map((d) => d.msg || d).join("; ");
+      } catch (_) { /* ignore */ }
+      const err = new Error(detail);
+      err.status = resp.status;
+      throw err;
+    }
     return resp.json();
   },
 
@@ -182,6 +192,38 @@ const API = {
       "/api/companies/" + companyId + "/resources/" + encodeURIComponent(resourceType) + "/" + encodeURIComponent(resourceId),
       { method: "DELETE" },
     );
+  },
+
+  searchHomerunOpportunities(query, limit) {
+    var q = "/api/homerun/opportunities/search?query=" + encodeURIComponent(query || "");
+    if (limit != null) q += "&limit=" + encodeURIComponent(String(limit));
+    return this._fetch(q);
+  },
+
+  homerunFillPreview(opportunityUuid) {
+    return this._fetch("/api/homerun/opportunities/" + encodeURIComponent(opportunityUuid) + "/fill-preview");
+  },
+
+  generateHomerunFieldDraft(companyKey, opportunityUuid, prompt) {
+    return this._post("/api/companies/" + encodeURIComponent(companyKey) + "/homerun-field-draft", {
+      opportunity_uuid: opportunityUuid,
+      prompt: prompt || "",
+    });
+  },
+
+  getSalesforceSnowflakeContext(companyKey, opportunityUuid) {
+    var q =
+      "/api/companies/" +
+      encodeURIComponent(companyKey) +
+      "/snowflake/salesforce-context?opportunity_uuid=" +
+      encodeURIComponent(opportunityUuid || "");
+    return this._fetch(q);
+  },
+
+  summarizeSalesforceSnowflakeContext(companyKey, opportunityUuid) {
+    return this._post("/api/companies/" + encodeURIComponent(companyKey) + "/snowflake/salesforce-summary", {
+      opportunity_uuid: opportunityUuid,
+    });
   },
 
   // Company Notes

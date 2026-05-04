@@ -1,0 +1,10 @@
+{"ts": "2026-04-17T15:48:13.592567Z", "event": "analyze", "session_id": "beddb653", "page_type": "unknown", "has_image": true, "prompt_len": 164}
+{"ts": "2026-04-17T15:52:32.955729Z", "event": "report", "session_id": "cebfb076", "obs_count": 11, "history_len": 2, "account": "Datadog Demo"}
+{"ts": "2026-04-17T15:58:30.003232Z", "event": "analyze", "session_id": "b58a768f", "page_type": "unknown", "has_image": false, "prompt_len": 72}
+{"ts": "2026-04-17T16:00:50.342933Z", "event": "report", "session_id": "bba6c637", "obs_count": 11, "history_len": 2, "account": "Datadog Demo"}
+{"ts": "2026-04-17T16:07:39.796452Z", "event": "analyze", "session_id": "2f11ece3", "page_type": "unknown", "has_image": false, "prompt_len": 81}
+{"ts": "2026-04-17T16:09:04.961820Z", "event": "analyze", "session_id": "f685ffee", "page_type": "unknown", "has_image": false, "prompt_len": 34}
+{"ts": "2026-04-17T16:11:00.469819Z", "event": "report", "session_id": "725bb5e3", "obs_count": 10, "history_len": 4, "account": "Datadog Demo"}
+{"ts": "2026-04-17T16:19:34.622377Z", "event": "analyze", "session_id": "45963c79", "page_type": "unknown", "has_image": false, "prompt_len": 247}
+{"ts": "2026-04-17T16:22:45.984211Z", "event": "analyze", "session_id": "941c6fc7", "page_type": "unknown", "has_image": false, "prompt_len": 247}
+{"ts": "2026-04-17T16:28:17.696625Z", "event": "analyze", "session_id": "b7bfd660", "page_type": "unknown", "has_image": false, "prompt_len": 247}

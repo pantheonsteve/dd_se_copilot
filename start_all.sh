@@ -14,6 +14,8 @@ LOGS_DIR="$ROOT/logs"
 mkdir -p "$LOGS_DIR"
 
 # Service definitions: name | directory | venv path | command args (after python)
+# se_copilot: main FastAPI app — includes Support Admin Copilot routes at /api/sac/*
+#   (same process; no separate SAC server). Default port from se-copilot/config (5070).
 SERVICES=(
   "librarian|agents/rag|agents/rag/.venv|web.py --agent librarian"
   "value|agents/rag|agents/rag/.venv|web.py --agent value"
@@ -76,6 +78,9 @@ start_all() {
   echo ""
   echo "All agents launched. Use './start_all.sh stop' to shut them down."
   echo "Tail all logs:  tail -f $LOGS_DIR/*.log"
+  echo ""
+  echo "Support Admin Copilot (Chrome extension backend): same process as se_copilot —"
+  echo "  http://localhost:<PORT>/api/sac/*  (PORT defaults to 5070; see se-copilot/.env or config)"
 }
 
 case "${1:-start}" in
